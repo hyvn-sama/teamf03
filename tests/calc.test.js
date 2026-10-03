@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   daysUntil, ddayLabel, formatDate, formatTime, timeRange, countRsvp, defaultSettle,
-  perPerson, amountFor, settleSummary, diffEvent, seenCount, toICS, won,
+  perPerson, amountFor, settleSummary, diffEvent, seenCount, toICS, won, supplyItems, supplyStatus, lateList,
 } from '../js/calc.js';
 
 const now = new Date(2026, 9, 3, 17, 51); // 2026-10-03 17:51 (토)
@@ -81,4 +81,32 @@ test('toICS: 캘린더 파일에 모임명·시간·장소', () => {
 
 test('won: 금액 표시', () => {
   assert.equal(won(224000), '224,000원');
+});
+
+test('supplyItems / supplyStatus: 쉼표로 나눈 준비물별 각자·담당자', () => {
+  const e = { supplies: '개인 컵, 간단한 간식,보드게임\n블루투스 스피커', supplyEach: ['개인 컵', '없어진 물건'] };
+  assert.deepEqual(supplyItems(e), ['개인 컵', '간단한 간식', '보드게임', '블루투스 스피커']);
+  const ps = [
+    { id: 'a', name: '박지연', rsvp: 'yes', brings: ['간단한 간식'] },
+    { id: 'b', name: '최지훈', rsvp: 'yes', brings: ['간단한 간식', '옛날 물건'] },
+    { id: 'c', name: '강도현', rsvp: 'no', brings: ['보드게임'] }, // 불참자는 담당에서 빠짐
+  ];
+  const s = supplyStatus(e, ps);
+  assert.deepEqual(s.map((x) => [x.name, x.each, x.bringers.map((p) => p.name)]), [
+    ['개인 컵', true, []],
+    ['간단한 간식', false, ['박지연', '최지훈']],
+    ['보드게임', false, []],
+    ['블루투스 스피커', false, []],
+  ]);
+  assert.equal(s.filter((x) => x.needed).length, 2);
+  assert.deepEqual(supplyStatus({ supplies: '' }, ps), []);
+});
+
+test('lateList: 참석자 중 늦는다고 알린 사람', () => {
+  const ps = [
+    { name: 'a', rsvp: 'yes', late: { minutes: 20 } },
+    { name: 'b', rsvp: 'yes', late: null },
+    { name: 'c', rsvp: 'no', late: { minutes: 10 } },
+  ];
+  assert.deepEqual(lateList(ps).map((p) => p.name), ['a']);
 });

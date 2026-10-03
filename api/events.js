@@ -1,10 +1,10 @@
 // 서버 API — 하나의 경로(/api/events)에서 action으로 나눠 처리
 //   GET  ?ping=1           저장소 연결 여부
 //   GET  ?id=              안내장 + 참가자
-//   POST {action, ...}     create | edit | settle | host | rsvp | self
+//   POST {action, ...}     create | edit | settle | host | each | rsvp | self
 import { createHash } from 'node:crypto';
 import {
-  InputError, createEvent, editEvent, cleanSettlement, newParticipant, selfUpdate, hostUpdate, newId,
+  InputError, createEvent, editEvent, cleanSettlement, newParticipant, selfUpdate, hostUpdate, setSupplyEach, newId,
 } from '../js/ops.js';
 import * as db from './_store.js';
 
@@ -77,6 +77,12 @@ async function handlePost(body) {
     const event = await loadAsHost(id, token);
     await db.putParticipant(id, hostUpdate(await loadParticipant(id, pid), data));
     return bundle(event);
+  }
+
+  if (action === 'each') {
+    const updated = setSupplyEach(await loadAsHost(id, token), data, now);
+    await db.putEvent(updated);
+    return bundle(updated);
   }
 
   if (action === 'rsvp') {

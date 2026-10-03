@@ -2,7 +2,7 @@
 //   server: Vercel 서버 함수 + Redis (여러 기기에서 공유)
 //   local : 브라우저 저장소 (서버 저장소가 없을 때 체험용, 이 기기에서만 보임)
 import {
-  createEvent, editEvent, cleanSettlement, newParticipant, selfUpdate, hostUpdate, newId,
+  createEvent, editEvent, cleanSettlement, newParticipant, selfUpdate, hostUpdate, setSupplyEach, newId,
 } from './ops.js';
 
 let mode = 'local';
@@ -102,6 +102,8 @@ function localCall(action, { id, token, pid, data = {} }) {
     } else if (action === 'host') {
       needHost();
       db.people[id][pid] = hostUpdate(needPerson(), data);
+    } else if (action === 'each') {
+      db.events[id] = setSupplyEach(needHost(), data, now);
     } else if (action === 'rsvp') {
       const p = newParticipant(data, need(), now);
       db.people[id] = { ...(db.people[id] || {}), [p.id]: p };
@@ -130,6 +132,7 @@ export const api = {
   edit: (id, token, data) => call('edit', { id, token, data }),
   settle: (id, token, data) => call('settle', { id, token, data }),
   host: (id, token, pid, data) => call('host', { id, token, pid, data }),
+  each: (id, token, data) => call('each', { id, token, data }),
   rsvp: (id, data) => call('rsvp', { id, data }),
   self: (id, pid, data) => call('self', { id, pid, data }),
 };

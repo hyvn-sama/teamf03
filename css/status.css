@@ -42,3 +42,7 @@
   .status-table .pill { padding: 5px 8px; font-size: 12px; }
   .status-table .pill .ic { display: none; }
 }
+.who { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.who small { color: var(--muted); font-weight: 500; font-size: 12px; }
+.late-chip { display: inline-flex; align-items: center; gap: 3px; background: var(--brand-soft); color: var(--brand); border-radius: 999px; padding: 1px 8px; font-size: 11px; font-weight: 700; }
+.late-chip .ic { width: 12px; height: 12px; }

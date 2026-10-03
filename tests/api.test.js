@@ -70,6 +70,12 @@ test('생성 → 조회 → 응답 → 수정 → 정산 → 입금 전체 흐�
   const host = await call('POST', { body: { action: 'host', id, token: editToken, pid: r2.json.participant.id, data: { rsvp: 'yes' } } });
   assert.equal(host.json.participants.find((p) => p.name === '이준호').settle, 'unpaid');
 
+  const each = await call('POST', { body: { action: 'each', id, token: editToken, data: { item: '개인 컵', on: true } } });
+  assert.equal(each.status, 400, '준비물이 없으면 거절');
+
+  const late = await call('POST', { body: { action: 'self', id, pid, data: { late: 10 } } });
+  assert.equal(late.json.participant.late.minutes, 10);
+
   const got = await call('GET', { query: { id } });
   assert.equal(got.json.event.placeName, '역삼 모임공간 B 4층');
   assert.equal(got.json.participants.length, 2);

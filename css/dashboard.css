@@ -12,6 +12,7 @@
 .today-card-time { font-size: 18px; font-weight: 700; margin-top: -6px; }
 .today-card-info { list-style: none; padding: 14px 0 0; margin: 0; width: 100%; text-align: left; display: grid; gap: 8px; border-top: 1px solid var(--line); color: var(--ink-2); }
 .today-card-info li { display: flex; gap: 8px; align-items: center; }
+.today-card-info .late-li { color: var(--brand); font-weight: 600; }
 .today-card-info .ic { color: var(--brand); }
 .today-card .notice, .today-card .btn-row, .today-card .mini-change { width: 100%; text-align: left; }
 

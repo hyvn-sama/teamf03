@@ -175,3 +175,33 @@ export function toICS(e) {
     'END:VCALENDAR',
   ].join('\r\n');
 }
+
+// 준비물: 쉼표·줄바꿈으로 나눈 항목
+export function supplyItems(e) {
+  return [...new Set(String(e.supplies || '').split(/[,，\n]/).map((s) => s.trim()).filter(Boolean))];
+}
+
+// 준비물별 상태 — each: 모두 각자 챙김, bringers: 가져오겠다고 한 참석자, needed: 담당자가 필요한데 아무도 없음
+export function supplyStatus(e, ps) {
+  const each = new Set(e.supplyEach || []);
+  return supplyItems(e).map((name) => {
+    const bringers = ps.filter((p) => p.rsvp === 'yes' && (p.brings || []).includes(name));
+    return { name, each: each.has(name), bringers, needed: !each.has(name) && bringers.length === 0 };
+  });
+}
+
+// 늦는다고 알린 참석자 (많이 늦는 순)
+export function lateList(ps) {
+  return ps.filter((p) => p.rsvp === 'yes' && p.late && p.late.minutes > 0).sort((a, b) => b.late.minutes - a.late.minutes);
+}
+
+const CHANGE_GROUP = {
+  date: '일정', startTime: '시간', endTime: '시간', placeName: '장소', address: '장소',
+  title: '모임명', expectedCount: '인원', fee: '참가비', supplies: '준비물', notes: '유의사항',
+  hostName: '연락처', hostPhone: '연락처',
+};
+
+// 최근 변경 요약: "장소" / "시간·장소"
+export function changeSummary(e) {
+  return [...new Set((e.changes || []).map((c) => CHANGE_GROUP[c.field] || c.label))].join('·');
+}

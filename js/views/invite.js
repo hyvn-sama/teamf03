@@ -3,11 +3,12 @@ import { api } from '../api.js';
 import { hostToken, myParticipantId, setMyParticipantId, localSeen, setLocalSeen } from '../store.js';
 import {
   countRsvp, seenCount, amountFor, daysUntil, formatDate, formatTime, timeLeft, won, displayValue,
+  supplyStatus, lateList, changeSummary, josa,
 } from '../calc.js';
 import {
   esc, nl2br, icon, toast, copyText, inviteUrl, shareInvite, downloadICS, mapUrl, errorView, RSVP_LABEL,
 } from '../ui.js';
-import { inviteCard, ddayBadge } from '../card.js';
+import { inviteCard, ddayBadge, seenPill } from '../card.js';
 
 const POLL_MS = 15000;
 
@@ -39,7 +40,7 @@ function changeBanner(e, participants, unseen) {
       <div class="change-banner-head">
         <span class="alert-dot">!</span>
         <strong>안내장 내용이 변경되었어요</strong>
-        ${total ? `<span class="seen-pill">${icon('check')}확인 ${seen} / ${total}</span>` : ''}
+        ${total ? seenPill({ seen, total }) : ''}
       </div>
       <div class="change-rows">
         ${e.changes.map((c) => `
@@ -98,10 +99,96 @@ function settlePanel(e, me) {
     </section>`;
 }
 
+const avatar = (p) => `<span class="avatar">${esc(p.name.slice(-2, -1) || p.name[0])}</span>`;
+
+function seenModal(e, ps, me) {
+  const { seen, total } = seenCount(ps, e.changeVersion);
+  const unseen = ps.filter((p) => (p.seenVersion || 0) < e.changeVersion);
+  const summary = changeSummary(e);
+  return {
+    title: '변경 안내 확인 현황',
+    body: `
+      <p class="hint">${esc(summary)} 변경 안내를 ${total}명 중 ${seen}명이 확인했어요.</p>
+      <div class="bar modal-bar"><i class="yes" style="width:${total ? (seen / total) * 100 : 0}%"></i></div>
+      ${unseen.length ? `
+        <h3 class="modal-sub">아직 확인하지 않은 ${unseen.length}명</h3>
+        <ul class="person-list">
+          ${unseen.map((p) => `<li>${avatar(p)}<span>${esc(p.name)}${me && me.id === p.id ? ' (나)' : ''}</span><em>미확인</em></li>`).join('')}
+        </ul>` : `<p class="all-done">${icon('checkCircle')}모두 확인했어요</p>`}`,
+    footer: unseen.length ? '<button class="btn primary block" data-act="renotify">미확인자에게 다시 알리기</button>' : '<button class="btn primary block" data-act="close-modal">닫기</button>',
+  };
+}
+
+function supplyModal(e, ps, me, isHost) {
+  const list = supplyStatus(e, ps);
+  const mine = new Set((me && me.brings) || []);
+  return {
+    title: '준비물 · 누가 가져오나요?',
+    body: `
+      <p class="hint">안내장의 준비물을 쉼표(,) 기준으로 나눴어요. 모두 챙기는 건 <b>각자</b>${isHost ? '를 켜고' : '로 표시돼 있고'}, 한 명만 가져오면 되는 건 담당을 정해주세요.</p>
+      <ul class="supply-list">
+        ${list.map((x) => `
+          <li class="supply-item${x.needed ? ' need' : ''}">
+            <div>
+              <p class="supply-name">${esc(x.name)}
+                ${isHost
+                  ? `<button type="button" class="each-toggle${x.each ? ' on' : ''}" data-each="${esc(x.name)}" aria-pressed="${x.each}">${icon('users')}각자</button>`
+                  : x.each ? `<span class="each-toggle on">${icon('users')}각자</span>` : ''}
+              </p>
+              ${x.needed ? '<span class="tag need-tag">담당자 필요</span>' : ''}
+              <p class="hint">${x.each ? '모두 각자 챙겨요' : x.bringers.length ? `${esc(x.bringers.map((p) => p.name).join(', '))} 가져와요` : '아직 아무도 없어요'}</p>
+            </div>
+            ${x.each ? '' : `<button type="button" class="btn sm${mine.has(x.name) ? ' primary' : ''}" data-bring="${esc(x.name)}" aria-pressed="${mine.has(x.name)}">${mine.has(x.name) ? `${icon('check')}내가 가져가요` : '내가 가져갈게요'}</button>`}
+          </li>`).join('')}
+      </ul>`,
+    footer: '<button class="btn primary block" data-act="close-modal">완료</button>',
+  };
+}
+
+function modalView(m) {
+  return `
+    <div class="modal-backdrop" data-act="close-modal">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-head"><h2 id="modal-title">${m.title}</h2><button class="modal-x" data-act="close-modal" aria-label="닫기">✕</button></div>
+        <div class="modal-body">${m.body}</div>
+        <div class="modal-foot">${m.footer}</div>
+      </div>
+    </div>`;
+}
+
+// 늦어요 (참석자) — 주최자 화면에 바로 표시
+function latePanel(me) {
+  const cur = me && me.late ? me.late.minutes : 0;
+  return `
+    <section class="card card-pad late-card">
+      <h2 class="late-title">늦을 것 같나요?</h2>
+      <p class="hint">누르면 주최자에게 바로 알려드려요.</p>
+      <div class="late-buttons">
+        ${[10, 20, 30].map((m) => `<button class="btn${cur === m ? ' primary' : ''}" data-late="${m}" aria-pressed="${cur === m}">${m}분 늦어요</button>`).join('')}
+      </div>
+      ${cur ? `<p class="late-sent">${icon('checkCircle')}주최자에게 ${cur}분 늦는다고 알렸어요 <button class="link-btn" data-late="0">제시간에 가요</button></p>` : ''}
+    </section>`;
+}
+
+// 늦어요 (주최자 화면)
+function lateBoard(ps) {
+  const late = lateList(ps);
+  if (!late.length) return '';
+  return `
+    <section class="card card-pad late-board">
+      <h2 class="today-h">${icon('clock')}늦는다고 알린 사람 ${late.length}명</h2>
+      <ul class="person-list">
+        ${late.map((p) => `<li>${avatar(p)}<span>${esc(p.name)}</span><em>${p.late.minutes}분 늦어요 · ${esc(formatTime(new Date(p.late.at).toTimeString().slice(0, 5)))} 알림</em></li>`).join('')}
+      </ul>
+    </section>`;
+}
+
 function fullView(data, ctx) {
   const { event: e, participants } = data;
   const { me, isHost, unseen, isNew } = ctx;
-  const changed = unseen ? Object.fromEntries(e.changes.map((c) => [c.field, c.before])) : {};
+  const showChanges = (unseen || isHost) && e.changeVersion > 0;
+  const changed = showChanges ? Object.fromEntries(e.changes.map((c) => [c.field, c.before])) : {};
+  const seen = showChanges ? seenCount(participants, e.changeVersion) : null;
   const n = daysUntil(e.date);
   return `
     ${isHost ? hostBar(e, isNew) : ''}
@@ -110,7 +197,7 @@ function fullView(data, ctx) {
     <div class="invite-layout">
       <div class="invite-main card">
         ${changeBanner(e, participants, unseen)}
-        ${inviteCard(e, { changed, actions: `<button class="btn block" data-act="ics">${icon('calendar')}캘린더에 추가</button>` })}
+        ${inviteCard(e, { changed, seen, supply: supplyStatus(e, participants), actions: `<button class="btn block" data-act="ics">${icon('calendar')}캘린더에 추가</button>` })}
       </div>
       <aside class="invite-side">
         <section class="card side-card dday-card">
@@ -140,6 +227,7 @@ function todayView(data, ctx) {
         <p class="today-time">오늘 ${esc(formatTime(e.startTime))} <em>${left ? `${left} 남았어요` : '모임이 시작됐어요'}</em></p>
         <p class="today-hint">오늘은 가는 길과 연락처를 먼저 보여드려요.</p>
       </section>
+      ${ctx.isHost ? lateBoard(data.participants) : ''}
       ${ctx.unseen ? changeBanner(e, data.participants, true) : ''}
       <section class="card card-pad">
         <h2 class="today-h">${icon('pin')}오시는 길</h2>
@@ -160,10 +248,12 @@ function todayView(data, ctx) {
               <a class="btn" href="sms:${esc(e.hostPhone.replace(/[^\d+]/g, ''))}">${icon('message')}문자</a>
             </div>` : ''}
         </section>` : ''}
+      ${ctx.me && ctx.me.rsvp === 'yes' ? latePanel(ctx.me) : ''}
       ${supplies.length || e.notes ? `
         <section class="card card-pad">
           <h2 class="today-h">챙길 것 · 유의사항</h2>
           ${supplies.length ? `<div class="chips">${supplies.map((s) => `<span class="chip">${esc(s)}</span>`).join('')}</div>` : ''}
+          ${supplyStatus(e, data.participants).length ? `<button class="link-btn" data-act="open-supply">누가 무엇을 가져오는지 보기 ${icon('next')}</button>` : ''}
           ${e.notes ? `<p class="today-notes">${nl2br(e.notes)}</p>` : ''}
         </section>` : ''}
       ${rsvpPanel(ctx.me)}
@@ -177,6 +267,7 @@ export async function render(root, { id, query, isStale }) {
   const isHost = !!hostToken(id);
   const isNew = query.new === '1';
   let busy = false;
+  let modal = null; // 'seen' | 'supply'
 
   const ctxOf = () => {
     const me = data.participants.find((p) => p.id === myParticipantId(id)) || null;
@@ -190,7 +281,13 @@ export async function render(root, { id, query, isStale }) {
     const today = daysUntil(data.event.date) === 0 && query.view !== 'full';
     const typed = root.querySelector('#rsvp-name');
     const name = typed ? typed.value : '';
-    root.innerHTML = today ? todayView(data, ctx) : fullView(data, ctx);
+    const scroll = root.querySelector('.modal-body')?.scrollTop || 0;
+    let html = today ? todayView(data, ctx) : fullView(data, ctx);
+    if (modal === 'seen') html += modalView(seenModal(data.event, data.participants, ctx.me));
+    if (modal === 'supply') html += modalView(supplyModal(data.event, data.participants, ctx.me, isHost));
+    root.innerHTML = html;
+    document.body.classList.toggle('modal-open', !!modal);
+    if (modal) root.querySelector('.modal-body').scrollTop = scroll;
     const again = root.querySelector('#rsvp-name');
     if (again) again.value = name;
     document.title = `${data.event.title} — 모임 알림장`;
@@ -211,10 +308,34 @@ export async function render(root, { id, query, isStale }) {
   };
 
   const onClick = (ev) => {
-    const btn = ev.target.closest('[data-act], [data-rsvp]');
+    const btn = ev.target.closest('[data-act], [data-rsvp], [data-each], [data-bring], [data-late]');
     if (!btn) return;
     const me = ctxOf().me;
     const e = data.event;
+    const token = hostToken(id);
+
+    if (btn.dataset.each != null) {
+      const item = btn.dataset.each;
+      const on = !btn.classList.contains('on');
+      run(() => api.each(id, token, { item, on }), on ? `${item}: 모두 각자 챙기도록 했어요` : `${item}: 담당을 정할 수 있어요`);
+      return;
+    }
+    if (btn.dataset.bring != null) {
+      if (!me || me.rsvp !== 'yes') {
+        toast('먼저 참석으로 응답해주세요', 'err');
+        return;
+      }
+      const item = btn.dataset.bring;
+      const has = (me.brings || []).includes(item);
+      const brings = has ? me.brings.filter((b) => b !== item) : [...(me.brings || []), item];
+      run(() => api.self(id, me.id, { brings }), has ? `${item} 담당을 취소했어요` : `${josa(item, '을', '를')} 가져가기로 했어요`);
+      return;
+    }
+    if (btn.dataset.late != null) {
+      const late = Number(btn.dataset.late);
+      run(() => api.self(id, me.id, { late }), late ? `주최자에게 ${late}분 늦는다고 알렸어요` : '늦어요 알림을 취소했어요');
+      return;
+    }
 
     if (btn.dataset.rsvp) {
       const rsvp = btn.dataset.rsvp;
@@ -239,6 +360,26 @@ export async function render(root, { id, query, isStale }) {
     }
 
     const act = btn.dataset.act;
+    if (act === 'close-modal') {
+      // 배경을 직접 눌렀을 때만 닫힘 (모달 안 클릭은 무시)
+      if (btn.classList.contains('modal-backdrop') && ev.target !== btn) return;
+      modal = null;
+      draw();
+      return;
+    }
+    if (act === 'open-seen' || act === 'open-supply') {
+      modal = act === 'open-seen' ? 'seen' : 'supply';
+      draw();
+      root.querySelector('.modal-x').focus();
+      return;
+    }
+    if (act === 'renotify') {
+      const names = data.participants.filter((p) => (p.seenVersion || 0) < e.changeVersion).map((p) => p.name);
+      shareInvite(e, `[변경 안내 다시 알림] ${names.join(', ')}님, ${josa(changeSummary(e), '이', '가')} 바뀌었어요. 링크에서 확인 부탁드려요!
+
+`);
+      return;
+    }
     if (act === 'copy-link') copyText(inviteUrl(id), '링크를 복사했어요');
     if (act === 'share') shareInvite(e);
     if (act === 'ics') downloadICS(e);
@@ -254,12 +395,19 @@ export async function render(root, { id, query, isStale }) {
     }
   };
   root.addEventListener('click', onClick);
+  const onKey = (ev) => {
+    if (ev.key === 'Escape' && modal) {
+      modal = null;
+      draw();
+    }
+  };
+  document.addEventListener('keydown', onKey);
 
   draw();
 
   // 다른 사람의 응답·정산이 보이도록 주기적으로 새로고침 (입력 중이면 건너뜀)
   const timer = setInterval(async () => {
-    if (busy || isStale() || document.hidden || document.activeElement?.id === 'rsvp-name') return;
+    if (busy || modal || isStale() || document.hidden || document.activeElement?.id === 'rsvp-name') return;
     try {
       data = await api.get(id);
       if (!isStale()) draw();
@@ -268,5 +416,7 @@ export async function render(root, { id, query, isStale }) {
   return () => {
     clearInterval(timer);
     root.removeEventListener('click', onClick);
+    document.removeEventListener('keydown', onKey);
+    document.body.classList.remove('modal-open');
   };
 }

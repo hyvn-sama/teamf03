@@ -105,3 +105,46 @@
   .change-row { grid-template-columns: 80px 1fr; }
   .host-bar-label { width: 100%; }
 }
+
+/* 확인 현황 버튼 */
+button.seen-pill { cursor: pointer; color: var(--brand); font-family: inherit; }
+button.seen-pill:hover { background: var(--brand-soft); }
+.row-label .seen-pill { font-size: 11px; padding: 0 8px; }
+
+/* 준비물 · 누가 가져오나요? */
+.supply-box { display: flex; gap: 12px; align-items: flex-start; margin: 14px 0 0; padding: 14px; border: 1.5px dashed #f2b9a0; border-radius: 12px; }
+.supply-box > .ic { color: var(--brand); margin-top: 3px; }
+.supply-box.changed { border-style: solid; border-color: var(--brand); background: var(--brand-softer); }
+.supply-main { flex: 1; min-width: 0; }
+.supply-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 4px; }
+.supply-chip { display: inline-flex; align-items: baseline; gap: 4px; padding: 4px 10px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-size: 13px; }
+.supply-chip small { color: var(--muted); font-size: 11px; }
+.supply-chip.need { background: #fde3dc; }
+.supply-chip.need small { color: #c4321f; font-weight: 700; }
+.need-line { color: #c4321f; font-size: 12px; font-weight: 700; }
+.supply-box .link-btn { flex: none; margin-top: 2px; }
+
+.modal-bar { margin: 12px 0 18px; height: 8px; }
+.modal-sub { font-size: 14px; margin-bottom: 10px; }
+.all-done { display: flex; align-items: center; gap: 6px; color: var(--green); font-weight: 700; padding: 8px 0 4px; }
+.supply-list { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 10px; }
+.supply-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; }
+.supply-item.need { border-color: #f2b9a0; background: #fffafa; }
+.supply-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 700; font-size: 15px; }
+.supply-item .hint { margin-top: 4px; font-size: 13px; color: var(--ink-2); }
+.supply-item > .btn { flex: none; }
+.each-toggle { display: inline-flex; align-items: center; gap: 3px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line-strong); background: #fff; font-size: 12px; font-weight: 700; color: var(--ink-2); font-family: inherit; }
+button.each-toggle { cursor: pointer; }
+.each-toggle.on { background: var(--dark); border-color: var(--dark); color: #fff; }
+.each-toggle .ic { width: 13px; height: 13px; }
+.need-tag { background: #c4321f; color: #fff; margin-top: 6px; }
+
+/* 늦어요 */
+.late-card { background: var(--brand-softer); border-color: #f7d9cb; }
+.late-title { color: var(--brand); font-size: 18px; }
+.late-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.late-buttons .btn { padding: 10px 6px; }
+.late-sent { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 12px; color: var(--green); font-size: 13px; font-weight: 700; }
+.late-sent .link-btn { margin-left: auto; color: var(--ink-2); text-decoration: underline; }
+.late-board { border: 1.5px solid var(--brand); }
+.today .link-btn { margin: 4px 0 10px; }

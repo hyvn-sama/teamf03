@@ -1,17 +1,11 @@
 // 내 알림장 — 이 브라우저에서 만든 안내장 목록 (가까운 모임부터)
 import { api } from '../api.js';
 import { hostedList, addHosted, removeHosted } from '../store.js';
-import { daysUntil, countRsvp, seenCount, settleSummary, formatDate, formatTime, josa } from '../calc.js';
+import { daysUntil, countRsvp, seenCount, settleSummary, formatDate, formatTime, josa, changeSummary, lateList } from '../calc.js';
 import { esc, nl2br, icon, toast } from '../ui.js';
 import { ddayBadge } from '../card.js';
 
-const GROUP = {
-  date: '일정', startTime: '시간', endTime: '시간', placeName: '장소', address: '장소',
-  title: '모임명', expectedCount: '인원', fee: '참가비', supplies: '준비물', notes: '유의사항',
-  hostName: '연락처', hostPhone: '연락처',
-};
-
-const changedText = (e) => josa([...new Set(e.changes.map((c) => GROUP[c.field] || c.label))].join('·'), '이', '가');
+const changedText = (e) => josa(changeSummary(e), '이', '가');
 
 function changeLine(e, ps) {
   if (!e.changeVersion || !e.changes.length) return '';
@@ -49,6 +43,7 @@ function todayCard({ event: e, participants: ps }) {
         <li>${icon('pin')}<b>${esc(e.placeName)}</b></li>
         ${e.supplies ? `<li>${icon('bag')}${esc(e.supplies)}</li>` : ''}
         <li>${icon('users')}참석 예정 ${c.yes}${e.expectedCount ? ` / ${e.expectedCount}` : ''} 명</li>
+        ${lateList(ps).length ? `<li class="late-li">${icon('clock')}늦는다고 알린 사람 ${lateList(ps).length}명 · ${esc(lateList(ps).map((p) => `${p.name} ${p.late.minutes}분`).join(', '))}</li>` : ''}
       </ul>
       ${e.notes ? `<div class="notice"><p class="notice-title">${icon('alert')}유의사항</p><p>${nl2br(e.notes)}</p></div>` : ''}
       ${changeLine(e, ps)}

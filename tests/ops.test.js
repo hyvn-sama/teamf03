@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createEvent, editEvent, cleanSettlement, newParticipant, selfUpdate, hostUpdate, InputError,
+  createEvent, editEvent, cleanSettlement, newParticipant, selfUpdate, hostUpdate, setSupplyEach, InputError,
 } from '../js/ops.js';
 
 const now = new Date('2026-10-03T09:00:00Z');
@@ -100,4 +100,30 @@ test('cleanSettlement: 필수값, 개인별 금액은 참석자만', () => {
   assert.deepEqual(s.custom, { p1: 20000 });
   assert.throws(() => cleanSettlement({ total: '0', count: '1', accountNo: 'a', accountHolder: 'b' }, ps, now), InputError);
   assert.throws(() => cleanSettlement({ total: '10', count: '1', accountNo: '', accountHolder: 'b' }, ps, now), InputError);
+});
+
+test('selfUpdate: 준비물 담당(brings)과 늦어요(late)', () => {
+  const e = { ...createEvent({ ...base, supplies: '개인 컵, 간식' }, now), supplyEach: [] };
+  let p = newParticipant({ name: 'a', rsvp: 'yes' }, e, now);
+  assert.deepEqual(p.brings, []);
+  assert.equal(p.late, null);
+  p = selfUpdate(p, { brings: ['간식', '간식', '없는 물건'] }, e, now);
+  assert.deepEqual(p.brings, ['간식']);
+  p = selfUpdate(p, { late: 20 }, e, now);
+  assert.equal(p.late.minutes, 20);
+  p = selfUpdate(p, { late: 0 }, e, now);
+  assert.equal(p.late, null);
+  assert.throws(() => selfUpdate(p, { late: 15 }, e, now), InputError);
+  const no = newParticipant({ name: 'b', rsvp: 'no' }, e, now);
+  assert.throws(() => selfUpdate(no, { brings: ['간식'] }, e, now), InputError);
+  assert.throws(() => selfUpdate(no, { late: 10 }, e, now), InputError);
+});
+
+test('setSupplyEach: 각자 챙기는 준비물 켜고 끄기', () => {
+  const e = createEvent({ ...base, supplies: '개인 컵, 간식' }, now);
+  let next = setSupplyEach(e, { item: '개인 컵', on: true }, now);
+  assert.deepEqual(next.supplyEach, ['개인 컵']);
+  next = setSupplyEach(next, { item: '개인 컵', on: false }, now);
+  assert.deepEqual(next.supplyEach, []);
+  assert.throws(() => setSupplyEach(e, { item: '없는 물건', on: true }, now), InputError);
 });

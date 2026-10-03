@@ -1,5 +1,5 @@
 // 데이터 처리 — 입력 검증과 상태 변경 규칙. 브라우저(로컬 모드)와 서버(api/)가 같이 쓴다.
-import { EDIT_FIELDS, FIELD_LABELS, defaultSettle, diffEvent, josa } from './calc.js';
+import { EDIT_FIELDS, FIELD_LABELS, defaultSettle, diffEvent, josa, supplyItems } from './calc.js';
 
 export class InputError extends Error {
   constructor(message) {
@@ -9,6 +9,7 @@ export class InputError extends Error {
 }
 
 const RSVP = ['yes', 'maybe', 'no'];
+const LATE_MINUTES = [0, 10, 20, 30];
 const SETTLE = ['done', 'unpaid', 'excluded'];
 const MAX_LEN = {
   title: 60, placeName: 80, address: 120, supplies: 300, notes: 600,
@@ -70,6 +71,7 @@ export function createEvent(raw, now = new Date()) {
     ...cleanEventInput(raw),
     changeVersion: 0,
     changes: [],
+    supplyEach: [],
     settlement: null,
     createdAt: at,
     updatedAt: at,
@@ -119,6 +121,8 @@ export function newParticipant(raw, event, now = new Date()) {
     seenVersion: event.changeVersion || 0,
     respondedAt: now.toISOString(),
     paidAt: null,
+    brings: [],
+    late: null,
   };
 }
 
@@ -142,7 +146,27 @@ export function selfUpdate(p, raw, event, now = new Date()) {
     next.settle = 'done';
     next.paidAt = now.toISOString();
   }
+  if (raw.brings != null) {
+    if (next.rsvp !== 'yes') throw new InputError('참석자만 준비물을 맡을 수 있어요.');
+    if (!Array.isArray(raw.brings)) throw new InputError('준비물 정보가 올바르지 않아요.');
+    const items = supplyItems(event);
+    next.brings = [...new Set(raw.brings.map(String))].filter((b) => items.includes(b));
+  }
+  if (raw.late != null) {
+    const minutes = Number(raw.late);
+    if (!LATE_MINUTES.includes(minutes)) throw new InputError('늦는 시간이 올바르지 않아요.');
+    if (minutes && next.rsvp !== 'yes') throw new InputError('참석자만 늦는다고 알릴 수 있어요.');
+    next.late = minutes ? { minutes, at: now.toISOString() } : null;
+  }
   return next;
+}
+
+// 주최자: 모두 각자 챙기는 준비물 표시
+export function setSupplyEach(event, raw, now = new Date()) {
+  const item = String(raw.item ?? '');
+  if (!supplyItems(event).includes(item)) throw new InputError('준비물을 찾을 수 없어요.');
+  const rest = (event.supplyEach || []).filter((x) => x !== item);
+  return { ...event, supplyEach: raw.on ? [...rest, item] : rest, updatedAt: now.toISOString() };
 }
 
 // 주최자: 참석·정산 상태 직접 변경

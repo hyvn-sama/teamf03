@@ -14,7 +14,13 @@ function row(p) {
   const canToggle = p.settle !== 'excluded';
   return `
     <tr data-pid="${esc(p.id)}">
-      <td><span class="avatar ${p.rsvp}">${esc(p.name.slice(-2, -1) || p.name[0])}</span>${esc(p.name)}</td>
+      <td>
+        <span class="avatar ${p.rsvp}">${esc(p.name.slice(-2, -1) || p.name[0])}</span>
+        <span class="who">${esc(p.name)}
+          ${p.rsvp === 'yes' && p.late ? `<span class="late-chip">${icon('clock')}${p.late.minutes}분 늦어요</span>` : ''}
+          ${p.rsvp === 'yes' && p.brings && p.brings.length ? `<small>${esc(p.brings.join(', '))} 담당</small>` : ''}
+        </span>
+      </td>
       <td>
         <label class="sr-only" for="r-${esc(p.id)}">${esc(p.name)} 참석 여부</label>
         <select id="r-${esc(p.id)}" class="rsvp-select ${p.rsvp}" data-rsvp>
