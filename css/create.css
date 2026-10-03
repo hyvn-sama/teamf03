@@ -1,0 +1,43 @@
+/* 01 안내장 만들기 / 수정·재공유 */
+.create-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+.create-side { position: sticky; top: 76px; display: grid; gap: 14px; }
+.form-section { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; margin: 6px 0 14px; padding-top: 18px; border-top: 1px solid var(--line); }
+.form-section:first-child { border-top: 0; padding-top: 0; }
+.form-section::before { content: ''; width: 7px; height: 7px; border-radius: 2px; background: var(--brand); }
+.form-section .hint { font-weight: 400; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; border-top: 1px solid var(--line); margin-top: 6px; }
+.two-col .form-section { border-top: 0; }
+.two-col .field { grid-template-columns: 1fr; gap: 6px; }
+.two-col .field > label { padding-top: 0; }
+.create-form .submit { margin-top: 8px; min-height: 52px; font-size: 16px; }
+
+.preview-label { color: var(--brand); font-size: 11px; letter-spacing: 0.2em; }
+.preview .invite-card { box-shadow: var(--shadow); }
+
+/* 수정: 바뀐 칸 */
+.field.is-changed > label { color: var(--brand); }
+.field.is-changed .input, .field.is-changed .textarea { border-color: var(--brand); background: var(--brand-softer); }
+.was { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.revert { margin-left: auto; border: 0; background: none; color: var(--brand); font-weight: 700; font-size: 12px; padding: 0; }
+
+.change-box { overflow: hidden; }
+.change-box-head { display: flex; align-items: center; gap: 8px; padding: 16px 18px; font-weight: 700; color: var(--muted); }
+.change-box.has-changes { border: 1.5px solid var(--brand); }
+.change-box.has-changes .change-box-head { background: var(--brand-softer); color: var(--brand); border-bottom: 1px solid #f7d9cb; }
+.change-list { padding: 0 18px; }
+.change-item { display: grid; grid-template-columns: 76px 1fr; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.change-label { font-weight: 600; }
+.change-item .after { color: var(--brand); font-weight: 700; }
+.change-box .save-share { margin: 16px 18px 18px; width: calc(100% - 36px); }
+.reshare h3 { font-size: 16px; }
+.reshare .hint { margin: 2px 0 12px; }
+.link-box { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border: 1px solid var(--line-strong); border-radius: 10px; margin-bottom: 10px; background: var(--brand-softer); }
+.link-box span { flex: 1; min-width: 0; font-size: 13px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 900px) {
+  .create-layout { grid-template-columns: 1fr; }
+  .create-side { position: static; }
+}
+@media (max-width: 520px) {
+  .two-col { grid-template-columns: 1fr; gap: 0; }
+}

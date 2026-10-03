@@ -1,0 +1,107 @@
+/* 안내장 카드 (미리보기·초대장 공용) */
+.invite-card { background: #fff; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+.invite-card-head { background: var(--brand); color: #fff; padding: 22px 22px 24px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.invite-card-head .eyebrow { font-size: 12px; opacity: 0.85; margin-bottom: 6px; }
+.invite-card-head h2 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; }
+.invite-card-head h2.changed { text-decoration: underline wavy rgba(255, 255, 255, 0.7); }
+.invite-card-head .dday { background: #fff; color: var(--brand); }
+.invite-card-head .placeholder { opacity: 0.6; }
+.invite-card-body { padding: 6px 22px 22px; display: grid; gap: 0; }
+.invite-card .row { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.invite-card .row > .ic { color: var(--brand); margin-top: 3px; }
+.invite-card .row.changed { margin: 8px -10px; padding: 12px 10px; border: 1.5px solid var(--brand); border-radius: 12px; background: var(--brand-softer); }
+.row-label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.row-main { font-weight: 700; font-size: 16px; }
+.row-sub { color: var(--muted); font-size: 13px; }
+.invite-card .row.changed .row-main { color: var(--brand); }
+.invite-card .placeholder { color: var(--line-strong); font-weight: 600; }
+.changed-tag { background: var(--brand); color: #fff; }
+.invite-card .chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.invite-card .chip.changed { outline: 1.5px solid var(--brand); }
+.invite-card .row.plain p:last-child { font-size: 14px; }
+.invite-card .notice { margin: 14px 0 4px; font-size: 14px; }
+.invite-card .notice.changed { border: 1.5px solid var(--brand); }
+.invite-card-body > .btn, .invite-card-body > .btn-row { margin-top: 16px; }
+.invite-card.is-preview .btn-row span { pointer-events: none; }
+
+/* 02 초대장 보기 */
+.invite-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.invite-main { overflow: hidden; }
+.invite-main > .invite-card { border: 0; border-radius: 0; }
+.invite-side { display: grid; gap: 14px; position: sticky; top: 76px; }
+.side-card { padding: 18px; }
+.side-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.dday-card { text-align: center; border: 1.5px solid var(--brand); display: grid; gap: 4px; justify-items: center; }
+.dday-big { font-size: 46px; color: var(--brand); line-height: 1.1; }
+.serif { font-family: var(--serif); }
+.rsvp-card .input { margin: 10px 0 0; }
+.rsvp-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.rsvp-btn { min-height: 44px; border-radius: 10px; border: 1.5px solid var(--line-strong); background: #fff; font-weight: 700; }
+.rsvp-btn:hover { border-color: var(--brand); }
+.rsvp-btn.on.yes { background: var(--brand); border-color: var(--brand); color: #fff; }
+.rsvp-btn.on.maybe { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); }
+.rsvp-btn.on.no { background: var(--gray-soft); border-color: var(--gray); color: var(--ink-2); }
+.att-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.att-head p { color: var(--muted); font-size: 13px; }
+.att-head b { font-size: 30px; color: var(--brand); font-weight: 400; margin-right: 2px; }
+.legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); margin: 8px 0 12px; }
+.lg { width: 8px; height: 8px; border-radius: 2px; margin-left: 4px; }
+.lg:first-child { margin-left: 0; }
+.lg.yes { background: var(--brand); } .lg.maybe { background: var(--blue); } .lg.no { background: var(--gray); }
+.settle-card { border: 1.5px solid var(--brand); display: grid; gap: 8px; }
+.settle-amount { font-size: 34px; color: var(--brand); line-height: 1.1; }
+.account { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--brand-softer); border-radius: 10px; padding: 12px; }
+.account-no { font-weight: 700; }
+.my-settle { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 14px; }
+
+/* 변경 배너 */
+.change-banner { background: var(--brand-softer); padding: 16px 18px; border-bottom: 1px solid #f7d9cb; }
+.change-banner-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--brand); }
+.alert-dot { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--brand); color: #fff; font-weight: 800; font-size: 13px; }
+.seen-pill { display: inline-flex; align-items: center; gap: 4px; border: 1.5px solid var(--brand); border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; background: #fff; }
+.change-rows { background: #fff; border-radius: 10px; padding: 10px 14px; margin: 12px 0; display: grid; gap: 4px; font-size: 14px; }
+.change-row { display: grid; grid-template-columns: 96px 1fr; gap: 8px; color: var(--muted); }
+.change-row.now { color: var(--brand); padding-bottom: 6px; }
+.change-banner-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+/* 주최자 메뉴·생성 완료 */
+.created { padding: 18px; margin-bottom: 14px; display: grid; gap: 12px; border: 1.5px solid var(--green); }
+.created-title { display: flex; align-items: center; gap: 6px; color: var(--green); font-weight: 700; font-size: 17px; }
+.created .link-box { margin: 0; }
+.host-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; margin-bottom: 18px; border-radius: 12px; background: var(--dark); }
+.host-bar-label { color: #fff; font-size: 13px; font-weight: 700; margin-right: auto; }
+.host-bar .btn { background: transparent; border-color: rgba(255, 255, 255, 0.35); color: #fff; }
+.host-bar .btn:hover { background: rgba(255, 255, 255, 0.1); }
+.link-box { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--brand-softer); }
+.link-box span { flex: 1; min-width: 0; font-size: 13px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* D-DAY 당일 모드 */
+.today { max-width: 640px; margin: 0 auto; display: grid; gap: 14px; }
+.today .back-link { margin-bottom: 0; }
+.today-hero { background: var(--dark); color: #fff; border-radius: 20px; padding: 24px; }
+.today-hero-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.live { color: #ff9f7a; font-size: 13px; letter-spacing: 0.15em; display: inline-flex; align-items: center; gap: 6px; }
+.live::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--brand); animation: blink 1.4s infinite; }
+.today-hero .dday.today { margin-left: auto; }
+.today-hero .dday.today { background: var(--brand); font-family: var(--serif); font-size: 18px; padding: 4px 14px; border-radius: 8px; }
+.today-hero h1 { font-size: 28px; letter-spacing: -0.02em; line-height: 1.3; }
+.today-time { font-size: 24px; font-weight: 700; margin-top: 10px; }
+.today-time em { font-style: normal; font-size: 14px; color: #ff9f7a; margin-left: 6px; }
+.today-hint { color: rgba(255, 255, 255, 0.7); font-size: 13px; margin-top: 8px; }
+.today-h { display: flex; align-items: center; gap: 8px; font-size: 17px; margin-bottom: 10px; }
+.today-h .ic { color: var(--brand); }
+.today-place { font-size: 18px; font-weight: 700; }
+.today .btn-row { margin-top: 14px; }
+.today .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.today-notes { background: var(--gray-soft); border-radius: 10px; padding: 12px 14px; font-size: 14px; }
+
+@media (max-width: 900px) {
+  .invite-layout { grid-template-columns: 1fr; }
+  .invite-side { position: static; }
+  .dday-card { display: none; }
+}
+@media (max-width: 520px) {
+  .invite-card-head h2 { font-size: 22px; }
+  .change-row { grid-template-columns: 80px 1fr; }
+  .host-bar-label { width: 100%; }
+}

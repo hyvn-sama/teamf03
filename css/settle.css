@@ -1,0 +1,43 @@
+/* 04 정산 안내 */
+.settle-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+.settle-form-head { display: flex; justify-content: space-between; align-items: center; }
+.settle-form-head h2 { font-size: 18px; }
+.settle-form > .hint { margin: 2px 0 18px; }
+.amount-box { background: var(--brand-softer); border: 1px solid #f7d9cb; border-radius: 14px; padding: 16px; margin: 6px 0 18px; }
+.amount-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.amount-head h3 { color: var(--brand); font-size: 15px; }
+.seg { display: inline-flex; background: #fff; border-radius: 10px; padding: 3px; border: 1px solid var(--line); }
+.seg button { border: 0; background: none; padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.seg button.on { background: var(--brand); color: #fff; }
+.per-person { font-size: 15px; }
+.per-person b { font-size: 30px; color: var(--brand); font-weight: 400; margin-left: 6px; }
+.amount-tools { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.amount-list { background: #fff; border: 1px solid var(--line); border-radius: 10px; max-height: 300px; overflow-y: auto; }
+.amount-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 12px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 14px; }
+.amount-row:last-child { border-bottom: 0; }
+.amount-row > span:first-child { display: flex; align-items: center; gap: 10px; }
+.amount-row i { font-style: normal; }
+.amount-row .input-unit { width: 140px; }
+.amount-row .input { min-height: 38px; }
+.amount-sum { display: flex; justify-content: space-between; font-weight: 700; margin-top: 12px; }
+.sum-check { font-size: 13px; font-weight: 700; margin-top: 4px; }
+.ok { color: var(--green); }
+.due { color: var(--brand); }
+.sent-msg { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--green); font-size: 13px; font-weight: 700; margin-top: 12px; }
+.sent-msg[hidden] { display: none; }
+
+.settle-side { display: grid; gap: 12px; position: sticky; top: 76px; }
+.participant-preview { overflow: hidden; border: 1.5px solid #f7d9cb; }
+.participant-preview .preview-head { background: var(--brand-softer); padding: 12px 16px; margin: 0; border-bottom: 1px solid #f7d9cb; }
+.participant-preview .card-pad { display: grid; gap: 10px; padding: 16px; }
+.participant-preview .btn { pointer-events: none; }
+.side-status { display: grid; gap: 10px; padding: 14px 16px; }
+
+@media (max-width: 900px) {
+  .settle-layout { grid-template-columns: 1fr; }
+  .settle-side { position: static; }
+}
+@media (max-width: 520px) {
+  .amount-head, .amount-tools { flex-direction: column; align-items: stretch; }
+  .amount-row .input-unit { width: 120px; }
+}

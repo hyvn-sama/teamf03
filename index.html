@@ -3,27 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>teamf03</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
-      background: #f7f7f8;
-      color: #222;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-    }
-    main { text-align: center; padding: 16px; }
-  </style>
+  <title>모임 알림장 — 링크 하나로 끝내는 모임 안내</title>
+  <meta name="description" content="시간·장소·준비물·유의사항·정산을 링크 하나로 공유하는 모임 안내장">
+  <meta property="og:title" content="모임 알림장">
+  <meta property="og:description" content="참석 여부와 모임 안내를 링크 하나에서 확인하세요.">
+  <meta name="theme-color" content="#E8501E">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='2' y='9' width='13' height='13' rx='3' fill='%23E8501E'/><rect x='17' y='9' width='13' height='13' rx='3' fill='%23F4A27F'/></svg>">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nanum+Pen+Script&display=swap">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/home.css">
+  <link rel="stylesheet" href="css/create.css">
+  <link rel="stylesheet" href="css/invite.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/status.css">
+  <link rel="stylesheet" href="css/settle.css">
 </head>
 <body>
-  <main>
-    <h1>teamf03</h1>
-    <p id="message"></p>
-  </main>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="logo" href="#/"><span class="logo-mark" aria-hidden="true"><i></i><i></i></span>모임 알림장</a>
+      <nav class="nav">
+        <a href="#/" data-nav="home" class="nav-link hide-sm">홈</a>
+        <a href="#/create" data-nav="create" class="nav-link">안내장 만들기</a>
+        <a href="#/my" data-nav="my" class="nav-my">내 알림장</a>
+      </nav>
+    </div>
+  </header>
+  <div id="mode-banner" class="mode-banner" hidden></div>
 
-  <script src="main.js"></script>
+  <main id="view" class="container"></main>
+
+  <noscript>이 앱은 자바스크립트가 필요해요.</noscript>
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
