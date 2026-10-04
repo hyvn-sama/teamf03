@@ -1,6 +1,7 @@
 // 내 알림장 — 이 브라우저에서 만든 안내장 목록 (가까운 모임부터)
 import { api } from '../api.js';
-import { hostedList, addHosted, removeHosted } from '../store.js';
+import { session } from '../store.js';
+import { loginHref } from '../access.js';
 import { daysUntil, countRsvp, seenCount, settleSummary, formatDate, formatTime, josa, changeSummary, lateList } from '../calc.js';
 import { esc, nl2br, icon, toast } from '../ui.js';
 import { ddayBadge } from '../card.js';
@@ -25,17 +26,20 @@ function progress(e, ps) {
     <div class="bar"><i class="yes" style="width:${Math.min(100, (c.yes / goal) * 100)}%"></i></div>`;
 }
 
-const buttons = (e) => `
+// 주최한 모임만 수정·재공유, 참여한 모임은 자세히 보기만
+const buttons = (e, role) => (role === 'host' ? `
   <div class="btn-row">
     <a class="btn sm" href="#/e/${e.id}">자세히 보기</a>
     <a class="btn sm primary" href="#/e/${e.id}/edit">수정 · 재공유</a>
-  </div>`;
+  </div>` : `<a class="btn sm block" href="#/e/${e.id}">자세히 보기</a>`);
 
-function todayCard({ event: e, participants: ps }) {
+const roleTag = (role) => `<span class="role-tag ${role}">${role === 'host' ? '주최' : '참여'}</span>`;
+
+function todayCard({ event: e, participants: ps, role }) {
   const c = countRsvp(ps);
   return `
     <article class="today-card card">
-      <p class="live">오늘의 모임 · 당일 모드</p>
+      <p class="live">오늘의 모임 · 당일 모드 ${roleTag(role)}</p>
       <span class="dday-dark serif">D-<em>DAY</em></span>
       <h2>${esc(e.title)}</h2>
       <p class="today-card-time">${esc(formatDate(e.date))} ${esc(formatTime(e.startTime))}</p>
@@ -47,47 +51,55 @@ function todayCard({ event: e, participants: ps }) {
       </ul>
       ${e.notes ? `<div class="notice"><p class="notice-title">${icon('alert')}유의사항</p><p>${nl2br(e.notes)}</p></div>` : ''}
       ${changeLine(e, ps)}
-      ${buttons(e)}
+      ${buttons(e, role)}
     </article>`;
 }
 
-function upcomingCard({ event: e, participants: ps }, tag) {
+function upcomingCard({ event: e, participants: ps, role }, tag) {
   const alert = e.changeVersion > 0 && seenCount(ps, e.changeVersion).seen < ps.length;
   return `
     <article class="ev-card card${alert ? ' has-alert' : ''}">
       ${alert ? '<span class="corner-alert" aria-label="변경 안내 미확인">!</span>' : ''}
-      <div class="ev-top">${ddayBadge(e.date)}<span class="hint">${esc(tag)}</span></div>
+      <div class="ev-top">${ddayBadge(e.date)}<span class="hint">${esc(tag)} ${roleTag(role)}</span></div>
       ${changeLine(e, ps)}
       <h3>${esc(e.title)}</h3>
       <p class="ev-meta">${icon('calendar')}${esc(formatDate(e.date))} ${esc(formatTime(e.startTime))}</p>
       <p class="ev-meta">${icon('pin')}${esc(e.placeName)}</p>
       ${progress(e, ps)}
-      ${buttons(e)}
+      ${buttons(e, role)}
     </article>`;
 }
 
-function pastCard({ event: e, participants: ps }) {
+function pastCard({ event: e, participants: ps, role }) {
   const c = countRsvp(ps);
   const s = settleSummary(ps, e.settlement);
   const settleText = !e.settlement ? '정산 미등록' : s.unpaid ? `정산 ${s.unpaid}명 남음` : '정산 완료';
   return `
     <article class="ev-card card past">
-      <div class="ev-top">${ddayBadge(e.date)}</div>
+      <div class="ev-top">${ddayBadge(e.date)}${roleTag(role)}</div>
       <h3>${esc(e.title)}</h3>
       <p class="ev-meta">${icon('calendar')}${esc(formatDate(e.date))} ${esc(formatTime(e.startTime))}</p>
       <p class="ev-meta">${icon('pin')}${esc(e.placeName)}</p>
       <div class="progress-label"><span>최종 참석 ${c.yes}명</span><b><a href="#/e/${e.id}/status">${settleText}</a></b></div>
-      <a class="btn sm block ghost" href="#/create?from=${e.id}">복제해서 새로 만들기</a>
+      ${role === 'host' ? `<a class="btn sm block ghost" href="#/create?from=${e.id}">복제해서 새로 만들기</a>` : `<a class="btn sm block ghost" href="#/e/${e.id}">자세히 보기</a>`}
     </article>`;
 }
 
 export async function render(root, { isStale }) {
-  const list = hostedList();
-  const loaded = await Promise.all(list.map((h) => api.get(h.id, { fresh: true }).catch((err) => ({ missing: h.id, err }))));
+  if (!session()) {
+    root.innerHTML = `
+      <div class="dash-head"><div><h1>내 알림장</h1></div></div>
+      <div class="empty card">
+        ${icon('list', 'big')}
+        <p>로그인하면 어느 기기에서든<br>내가 만든 모임과 응답한 모임을 볼 수 있어요.</p>
+        <a class="btn primary" href="${loginHref('/my')}">로그인하기</a>
+        <a class="link-btn" href="#/login?tab=signup&next=%2Fmy">처음이라면 회원가입</a>
+      </div>`;
+    return;
+  }
+  // 내가 만든 모임(주최)과 응답한 모임(참여) — 서버가 계정 기준으로 모아 줌
+  const { items } = await api.mine();
   if (isStale()) return;
-  // 서버에서 지워진 안내장은 목록에서 정리
-  loaded.filter((x) => x.missing && /찾을 수 없/.test(x.err.message)).forEach((x) => removeHosted(x.missing));
-  const items = loaded.filter((x) => x.event);
 
   const today = items.filter((x) => daysUntil(x.event.date) === 0);
   const upcoming = items.filter((x) => daysUntil(x.event.date) > 0).sort((a, b) => a.event.date.localeCompare(b.event.date) || a.event.startTime.localeCompare(b.event.startTime));
@@ -106,7 +118,7 @@ export async function render(root, { isStale }) {
     ${items.length === 0 ? `
       <div class="empty card">
         ${icon('list', 'big')}
-        <p>아직 만든 안내장이 없어요.<br><span class="hint">안내장은 만든 브라우저에 저장돼요.</span></p>
+        <p>아직 만들거나 응답한 모임이 없어요.<br><span class="hint">안내장을 만들거나 받은 링크에서 응답하면 여기에 모여요.</span></p>
         <a class="btn primary" href="#/create">${icon('mail')}첫 안내장 만들기</a>
         <button class="btn ghost" data-act="sample">샘플 모임 불러오기 (시연용)</button>
       </div>` : ''}
@@ -122,8 +134,7 @@ export async function render(root, { isStale }) {
       sampleBtn.textContent = '불러오는 중…';
       try {
         const { seedSamples } = await import('../sample.js');
-        const created = await seedSamples(api);
-        created.reverse().forEach((c) => addHosted(c.id, c.token));
+        await seedSamples(api);
         toast('샘플 모임 6개를 불러왔어요');
         if (!isStale()) render(root, { isStale });
       } catch (err) {

@@ -69,7 +69,7 @@ function samples() {
 async function seedOne(api, s) {
   const { event, editToken } = await api.create(s.data);
   const id = event.id;
-  const created = await Promise.all(s.people.map(([name, rsvp]) => api.rsvp(id, { name, rsvp })));
+  const created = await Promise.all(s.people.map(([name, rsvp]) => api.rsvp(id, { name, rsvp }, { anonymous: true })));
   const ps = created.map((r) => ({ ...r.participant, me: { pid: r.participant.id, token: r.participantToken } }));
 
   if (s.edit) await api.edit(id, editToken, { ...event, ...s.edit });

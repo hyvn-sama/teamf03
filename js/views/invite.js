@@ -1,6 +1,7 @@
 // 02 초대장 보기 (참석자 화면) + D-DAY 당일 모드
 import { api, getMode } from '../api.js';
-import { hostToken, addHosted, myself, setMyself, localSeen, setLocalSeen } from '../store.js';
+import { hostToken, addHosted, myself, setMyself, localSeen, setLocalSeen, session } from '../store.js';
+import { loginHref } from '../access.js';
 import {
   countRsvp, seenCount, amountFor, daysUntil, formatDate, formatTime, timeLeft, won, displayValue,
   supplyStatus, lateList, changeSummary, josa, pendingChanges, latestChanges, googleCalendarUrl,
@@ -71,7 +72,8 @@ function changeBanner(e, participants, changes) {
     </section>`;
 }
 
-function rsvpPanel(me) {
+function rsvpPanel({ me, auth, eventId }) {
+  const s = session();
   const buttons = ['yes', 'maybe', 'no'].map((r) => `
     <button class="rsvp-btn ${me && me.rsvp === r ? `on ${r}` : ''}" data-rsvp="${r}" aria-pressed="${me && me.rsvp === r}">${RSVP_LABEL[r]}</button>`).join('');
   return `
@@ -79,10 +81,12 @@ function rsvpPanel(me) {
       <h3>나의 참석 여부</h3>
       ${me
         ? `<p class="hint"><b>${esc(me.name)}</b> 님은 <b>${RSVP_LABEL[me.rsvp]}</b>으로 응답했어요. 바꾸려면 다시 눌러주세요.</p>
-           <p class="hint my-link">다른 기기에서 이어서 하려면 <button class="link-btn" data-act="copy-me">내 응답 링크 복사</button></p>`
-        : `<p class="hint">아직 응답하지 않았어요. 이름을 적고 선택해주세요.</p>
+           ${s ? '<p class="hint my-link">로그인한 계정에 저장돼서 다른 기기에서도 이어서 할 수 있어요.</p>'
+              : auth && auth.token ? '<p class="hint my-link">다른 기기에서 이어서 하려면 <button class="link-btn" data-act="copy-me">내 응답 링크 복사</button></p>' : ''}`
+        : `<p class="hint">${s ? `<b>${esc(s.user.name)}</b> 님 계정으로 응답해요. 응답하면 내 알림장에 저장돼요.` : '아직 응답하지 않았어요. 이름을 적고 선택해주세요.'}</p>
            <label class="sr-only" for="rsvp-name">이름</label>
-           <input class="input" id="rsvp-name" maxlength="20" placeholder="이름 (예: 송다은)" autocomplete="name">`}
+           <input class="input" id="rsvp-name" maxlength="20" placeholder="이름 (예: 송다은)" autocomplete="name" value="${s ? esc(s.user.name) : ''}">
+           ${s ? '' : `<p class="hint my-link"><a class="link-btn" href="${loginHref(`/e/${eventId}`)}">로그인하면 내 알림장에 저장돼요</a></p>`}`}
       <div class="rsvp-buttons">${buttons}</div>
     </section>`;
 }
@@ -225,7 +229,7 @@ function fullView(data, ctx) {
           <p class="hint">${esc(formatDate(e.date, { year: false }))} ${esc(formatTime(e.startTime))}</p>
           ${n === 0 ? `<a class="btn sm primary" href="#/e/${e.id}">당일 모드로 보기</a>` : ''}
         </section>
-        ${rsvpPanel(me)}
+        ${rsvpPanel(ctx)}
         ${settlePanel(e, me)}
         ${attendancePanel(e, participants, isHost)}
       </aside>
@@ -276,7 +280,7 @@ function todayView(data, ctx) {
           ${supplyStatus(e, data.participants).length ? `<button class="link-btn" data-act="open-supply">누가 무엇을 가져오는지 보기 ${icon('next')}</button>` : ''}
           ${e.notes ? `<p class="today-notes">${nl2br(e.notes)}</p>` : ''}
         </section>` : ''}
-      ${rsvpPanel(ctx.me)}
+      ${rsvpPanel(ctx)}
       ${settlePanel(e, ctx.me)}
       <a class="btn block ghost" href="#/e/${e.id}?view=full">전체 안내장 보기</a>
     </div>`;
@@ -292,7 +296,11 @@ export async function render(root, { id, query, isStale }) {
     if (query.p) toast('내 응답을 이 기기에 연결했어요');
   }
 
-  const isHost = !!hostToken(id);
+  // 로그인했으면 이 안내장에서 내 권한(주최자인지, 이미 응답했는지)을 계정 기준으로 확인
+  let account = { isHost: false, participant: null };
+  if (session()) account = await api.me(id).catch(() => account);
+  if (account.participant && !myself(id)) setMyself(id, account.participant.id, null);
+  const isHost = !!hostToken(id) || account.isHost;
   let data = await api.get(id, { fresh: isHost });
   const isNew = query.new === '1';
   let busy = false;
@@ -302,9 +310,9 @@ export async function render(root, { id, query, isStale }) {
   const ctxOf = () => {
     const auth = myself(id);
     // 토큰이 없는 예전 기록은 본인 확인을 못 하므로 다시 응답하게 한다
-    const me = (auth && auth.token && data.participants.find((p) => p.id === auth.pid)) || null;
+    const me = (auth && (auth.token || session()) && data.participants.find((p) => p.id === auth.pid)) || null;
     const seenVer = me ? me.seenVersion || 0 : localSeen(id);
-    return { me, auth, isHost, pending: pendingChanges(data.event, seenVer), isNew };
+    return { me, auth, isHost, pending: pendingChanges(data.event, seenVer), isNew, eventId: id };
   };
 
   const draw = () => {
@@ -320,7 +328,7 @@ export async function render(root, { id, query, isStale }) {
     document.body.classList.toggle('modal-open', !!modal);
     if (modal) root.querySelector('.modal-body').scrollTop = scroll;
     const again = root.querySelector('#rsvp-name');
-    if (again) again.value = name;
+    if (again && name) again.value = name;
     document.title = `${data.event.title} — 모임 알림장`;
   };
 
