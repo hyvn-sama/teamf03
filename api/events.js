@@ -1,8 +1,9 @@
 // 서버 API — 하나의 경로(/api/events)에서 action으로 나눠 처리
 //   GET  ?ping=1           저장소 연결 여부
 //   GET  ?id=              안내장 + 참가자
-//   POST {action, ...}     create | edit | settle | host | each  (주최자: token)
-//                          rsvp | self                           (참가자: pid + ptoken)
+//   POST {action, ...}     signup | login | logout | whoami | mine | me | claim  (로그인: session)
+//                          create(로그인 필수) | edit | settle | host | each   (주최자: token 또는 만든 사람 session)
+//                          rsvp | self                                       (참가자: pid + ptoken 또는 본인 session)
 import { createHash } from 'node:crypto';
 import {
   InputError, createEvent, editEvent, cleanSettlement, newParticipant, selfUpdate, hostUpdate, setSupplyEach, newId,
@@ -23,13 +24,14 @@ class HttpError extends Error {
 
 const notFound = () => new HttpError(404, '안내장을 찾을 수 없어요.');
 
+// 공개 응답에서 비밀값과 전화번호는 뺀다
 function publicEvent(e) {
-  const { editTokenHash, ...rest } = e;
+  const { editTokenHash, ownerPhone, ...rest } = e;
   return rest;
 }
 
 function publicParticipant(p) {
-  const { tokenHash, ...rest } = p;
+  const { tokenHash, userPhone, ...rest } = p;
   return rest;
 }
 
@@ -45,18 +47,23 @@ async function load(id) {
 }
 
 const isHost = (event, token) => Boolean(token) && hash(token) === event.editTokenHash;
+// 주최자: 관리 토큰(관리 링크) 또는 로그인한 만든 사람
+const canHost = (event, token, user) => isHost(event, token) || Boolean(user && event.ownerPhone === user.phone);
+// 참가자 본인: 응답 때 받은 토큰 또는 로그인한 본인
+const ownsParticipant = (p, ptoken, user) =>
+  Boolean((ptoken && p.tokenHash && hash(ptoken) === p.tokenHash) || (user && p.userPhone && p.userPhone === user.phone));
 
-async function loadAsHost(id, token) {
+async function loadAsHost(id, token, user) {
   const event = await load(id);
-  if (!isHost(event, token)) throw new HttpError(403, '주최자만 할 수 있어요.');
+  if (!canHost(event, token, user)) throw new HttpError(403, '주최자만 할 수 있어요.');
   return event;
 }
 
 // 주최자 전용 안내장 수정: 최신 값에 다시 적용하며 저장 (동시 수정 시 재시도)
-async function updateAsHost(id, token, fn) {
+async function updateAsHost(id, token, user, fn) {
   checkId(id);
   const updated = await db.updateEvent(id, (event) => {
-    if (!isHost(event, token)) throw new HttpError(403, '주최자만 할 수 있어요.');
+    if (!canHost(event, token, user)) throw new HttpError(403, '주최자만 할 수 있어요.');
     return fn(event);
   });
   if (!updated) throw notFound();
@@ -105,6 +112,33 @@ async function startSession(u) {
   return { session, user: publicUser(u) };
 }
 
+// 이 브라우저에 있던 주최(관리 토큰)·응답(참가자 토큰) 기록을 로그인한 계정으로 옮긴다
+async function claim(u, body) {
+  const list = (v) => (Array.isArray(v) ? v.slice(0, 100) : []);
+  const validId = (x) => /^[a-z0-9]{8}$/.test(String(x));
+  let hosted = 0;
+  let joined = 0;
+  for (const h of list(body.hosted)) {
+    if (!h || !validId(h.id)) continue;
+    const event = await db.getEvent(h.id);
+    if (!event || !isHost(event, h.token)) continue;
+    if (!event.ownerPhone) await db.updateEvent(h.id, (e) => (e.ownerPhone ? e : { ...e, ownerPhone: u.phone }));
+    await db.addUserEvent(u.phone, h.id, { role: 'host' });
+    hosted++;
+  }
+  for (const j of list(body.joined)) {
+    if (!j || !validId(j.id) || !j.ptoken) continue;
+    const p = await db.updateParticipant(j.id, String(j.pid), (cur) => {
+      if (hash(j.ptoken) !== cur.tokenHash) throw new HttpError(403, '토큰 불일치');
+      return cur.userPhone ? cur : { ...cur, userPhone: u.phone };
+    }).catch(() => null);
+    if (!p || p.userPhone !== u.phone) continue;
+    await db.addUserEvent(u.phone, j.id, { role: 'guest', pid: p.id });
+    joined++;
+  }
+  return { hosted, joined };
+}
+
 async function handlePost(body) {
   const { action, id, token, pid, ptoken } = body;
   const data = body.data && typeof body.data === 'object' ? body.data : null;
@@ -143,12 +177,39 @@ async function handlePost(body) {
 
   if (action === 'whoami') return { user: needUser(user) };
 
+  if (action === 'mine') {
+    const u = needUser(user);
+    const entries = Object.entries(await db.getUserEvents(u.phone))
+      .sort((a, b) => b[1].at.localeCompare(a[1].at))
+      .slice(0, 50);
+    const items = [];
+    for (const [eventId, info] of entries) {
+      const event = await db.getEvent(eventId);
+      if (event) items.push({ role: info.role, pid: info.pid || null, ...(await bundle(event)) });
+    }
+    return { items };
+  }
+
+  if (action === 'claim') return claim(needUser(user), body);
+
+  if (action === 'me') {
+    const event = await load(id);
+    if (!user) return { isHost: isHost(event, token), participant: null };
+    const info = (await db.getUserEvents(user.phone))[id];
+    const p = info && info.pid ? (await db.getParticipants(id)).find((x) => x.id === info.pid) : null;
+    return { isHost: canHost(event, token, user), participant: p ? publicParticipant(p) : null };
+  }
+
   if (action === 'create') {
+    const owner = needUser(user);
     const input = needData();
     const editToken = newId(24);
     for (let i = 0; i < 3; i++) {
-      const event = { ...createEvent(input, now), editTokenHash: hash(editToken) };
-      if (await db.createEventIfAbsent(event)) return { ...(await bundle(event)), editToken };
+      const event = { ...createEvent(input, now), editTokenHash: hash(editToken), ownerPhone: owner.phone };
+      if (await db.createEventIfAbsent(event)) {
+        await db.addUserEvent(owner.phone, event.id, { role: 'host' });
+        return { ...(await bundle(event)), editToken };
+      }
     }
     throw new HttpError(500, '잠시 후 다시 시도해주세요.');
   }
@@ -156,7 +217,7 @@ async function handlePost(body) {
   if (action === 'edit') {
     const input = needData();
     let changes = [];
-    const updated = await updateAsHost(id, token, (event) => {
+    const updated = await updateAsHost(id, token, user, (event) => {
       const result = editEvent(event, input, now);
       changes = result.changes;
       return result.event;
@@ -167,7 +228,7 @@ async function handlePost(body) {
   if (action === 'settle') {
     const input = needData();
     const participants = await db.getParticipants(id);
-    const updated = await updateAsHost(id, token, (event) => ({
+    const updated = await updateAsHost(id, token, user, (event) => ({
       ...event, settlement: cleanSettlement(input, participants, now), updatedAt: now.toISOString(),
     }));
     return bundle(updated);
@@ -175,21 +236,35 @@ async function handlePost(body) {
 
   if (action === 'each') {
     const input = needData();
-    return bundle(await updateAsHost(id, token, (event) => setSupplyEach(event, input, now)));
+    return bundle(await updateAsHost(id, token, user, (event) => setSupplyEach(event, input, now)));
   }
 
   if (action === 'host') {
     const input = needData();
-    const event = await loadAsHost(id, token);
+    const event = await loadAsHost(id, token, user);
     await updatePerson(id, pid, (p) => hostUpdate(p, input, event, now));
     return bundle(event);
   }
 
   if (action === 'rsvp') {
     const event = await load(id);
+    const input = needData();
+    if (user) {
+      // 같은 계정은 한 모임에 한 번만: 이미 응답했으면 그 응답을 고친다
+      const info = (await db.getUserEvents(user.phone))[id];
+      if (info && info.pid) {
+        const p = await db.updateParticipant(id, info.pid, (cur) => selfUpdate(cur, { name: input.name, rsvp: input.rsvp }, event, now));
+        if (p) return { ...(await bundle(event)), participant: publicParticipant(p), participantToken: null };
+      }
+    }
     const participantToken = newId(24);
-    const p = { ...newParticipant(needData(), event, now), tokenHash: hash(participantToken) };
+    const p = {
+      ...newParticipant(input, event, now),
+      tokenHash: hash(participantToken),
+      ...(user ? { userPhone: user.phone } : {}),
+    };
     await db.addParticipant(id, p);
+    if (user) await db.addUserEvent(user.phone, id, { role: 'guest', pid: p.id });
     return { ...(await bundle(event)), participant: publicParticipant(p), participantToken };
   }
 
@@ -197,8 +272,8 @@ async function handlePost(body) {
     const input = needData();
     const event = await load(id);
     const p = await updatePerson(id, pid, (cur) => {
-      // 참가자 id는 공개 정보라, 응답할 때 받은 비밀 토큰으로 본인인지 확인한다
-      if (!ptoken || !cur.tokenHash || hash(ptoken) !== cur.tokenHash) throw new HttpError(403, '본인만 바꿀 수 있어요.');
+      // 참가자 id는 공개 정보라, 응답 때 받은 비밀 토큰이나 로그인으로 본인인지 확인한다
+      if (!ownsParticipant(cur, ptoken, user)) throw new HttpError(403, '본인만 바꿀 수 있어요.');
       return selfUpdate(cur, input, event, now);
     });
     return { ...(await bundle(event)), participant: publicParticipant(p) };

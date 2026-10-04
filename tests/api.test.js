@@ -55,6 +55,20 @@ async function call(method, { query = {}, body } = {}) {
   return { status, json, headers };
 }
 
+let phoneSeq = 10000000;
+async function signup(name = '김민지') {
+  const phone = `010${phoneSeq++}`;
+  const r = await call('POST', { body: { action: 'signup', phone, name, password: 'pw1234' } });
+  return { phone, session: r.json.session, user: r.json.user, status: r.status };
+}
+
+// 기존 테스트용: 주최자 계정 하나를 만들어 재사용
+let hostSessionCache = null;
+async function hostSession() {
+  if (!hostSessionCache) hostSessionCache = (await signup('주최자')).session;
+  return hostSessionCache;
+}
+
 const input = { title: '가을 동아리 모임', date: '2026-10-31', startTime: '17:00', placeName: '하이브 라운지 3층' };
 
 test('ping: 저장소 연결 여부', async () => {
@@ -62,7 +76,7 @@ test('ping: 저장소 연결 여부', async () => {
 });
 
 test('생성 → 조회 → 응답 → 수정 → 정산 → 입금 전체 흐름', async () => {
-  const created = await call('POST', { body: { action: 'create', data: input } });
+  const created = await call('POST', { body: { action: 'create', session: await hostSession(), data: input } });
   assert.equal(created.status, 200);
   const { editToken } = created.json;
   const { id } = created.json.event;
@@ -105,14 +119,14 @@ test('생성 → 조회 → 응답 → 수정 → 정산 → 입금 전체 흐�
 });
 
 test('잘못된 입력·없는 안내장', async () => {
-  assert.equal((await call('POST', { body: { action: 'create', data: { ...input, title: '' } } })).status, 400);
+  assert.equal((await call('POST', { body: { action: 'create', session: await hostSession(), data: { ...input, title: '' } } })).status, 400);
   assert.equal((await call('GET', { query: { id: 'zzzzzzzz' } })).status, 404);
   assert.equal((await call('GET', { query: { id: '../etc' } })).status, 404);
   assert.equal((await call('POST', { body: { action: 'nope' } })).status, 400);
 });
 
 test('리뷰 01: 남의 참가자 id만으로는 본인 행세 불가', async () => {
-  const { json } = await call('POST', { body: { action: 'create', data: input } });
+  const { json } = await call('POST', { body: { action: 'create', session: await hostSession(), data: input } });
   const id = json.event.id;
   const victim = await call('POST', { body: { action: 'rsvp', id, data: { name: '강도현', rsvp: 'yes' } } });
   const pid = victim.json.participant.id;
@@ -123,7 +137,7 @@ test('리뷰 01: 남의 참가자 id만으로는 본인 행세 불가', async ()
 });
 
 test('리뷰 05: 같은 참가자를 동시에 고쳐도 두 변경이 모두 남음', async () => {
-  const { json } = await call('POST', { body: { action: 'create', data: input } });
+  const { json } = await call('POST', { body: { action: 'create', session: await hostSession(), data: input } });
   const { id } = json.event;
   const token = json.editToken;
   await call('POST', { body: { action: 'settle', id, token, data: { total: 10000, count: 1, accountNo: 'a', accountHolder: 'b' } } });
@@ -139,12 +153,12 @@ test('리뷰 05: 같은 참가자를 동시에 고쳐도 두 변경이 모두 �
 
 test('잘못된 요청 본문은 400', async () => {
   assert.equal((await call('POST', { body: '{깨진 json' })).status, 400);
-  assert.equal((await call('POST', { body: { action: 'create', data: null } })).status, 400);
+  assert.equal((await call('POST', { body: { action: 'create', session: await hostSession(), data: null } })).status, 400);
   assert.equal((await call('POST', { body: null })).status, 400);
 });
 
 test('안내장 조회는 CDN에 5초 캐시, 쓰기·ping·오류는 캐시 안 함', async () => {
-  const { json } = await call('POST', { body: { action: 'create', data: input } });
+  const { json } = await call('POST', { body: { action: 'create', session: await hostSession(), data: input } });
   const got = await call('GET', { query: { id: json.event.id } });
   assert.match(got.headers['cache-control'], /s-maxage=5/);
   assert.match((await call('GET', { query: { ping: '1' } })).headers['cache-control'], /no-store/);
@@ -153,20 +167,13 @@ test('안내장 조회는 CDN에 5초 캐시, 쓰기·ping·오류는 캐시 안
 });
 
 test('응답마다 stamp(마지막 변경 시각)가 붙어 옛 캐시를 구분할 수 있음', async () => {
-  const { json } = await call('POST', { body: { action: 'create', data: input } });
+  const { json } = await call('POST', { body: { action: 'create', session: await hostSession(), data: input } });
   const id = json.event.id;
   const s1 = (await call('GET', { query: { id } })).json.stamp;
   await new Promise((r) => setTimeout(r, 5));
   const r = await call('POST', { body: { action: 'rsvp', id, data: { name: 'a', rsvp: 'yes' } } });
   assert.ok(r.json.stamp > s1);
 });
-
-let phoneSeq = 10000000;
-async function signup(name = '김민지') {
-  const phone = `010${phoneSeq++}`;
-  const r = await call('POST', { body: { action: 'signup', phone, name, password: 'pw1234' } });
-  return { phone, session: r.json.session, user: r.json.user, status: r.status };
-}
 
 test('가입 → 로그인 → whoami → 로그아웃', async () => {
   const a = await signup();
@@ -185,4 +192,59 @@ test('비밀번호 10번 틀리면 15분 차단', async () => {
   const a = await signup();
   for (let i = 0; i < 10; i++) assert.equal((await call('POST', { body: { action: 'login', phone: a.phone, password: 'wrong' } })).status, 401);
   assert.equal((await call('POST', { body: { action: 'login', phone: a.phone, password: 'pw1234' } })).status, 429);
+});
+
+test('로그인 없이 만들기 불가, 공개 응답에 전화번호 없음', async () => {
+  assert.equal((await call('POST', { body: { action: 'create', data: input } })).status, 401);
+  const a = await signup();
+  const c = await call('POST', { body: { action: 'create', session: a.session, data: input } });
+  assert.equal(c.status, 200);
+  const got = await call('GET', { query: { id: c.json.event.id } });
+  assert.equal(JSON.stringify(got.json).includes(a.phone), false);
+});
+
+test('주최자는 토큰 없이 세션만으로 수정, 다른 사용자는 403', async () => {
+  const host = await signup(); const other = await signup('남');
+  const { json } = await call('POST', { body: { action: 'create', session: host.session, data: input } });
+  const id = json.event.id;
+  assert.equal((await call('POST', { body: { action: 'edit', id, session: host.session, data: { ...input, placeName: '새 장소' } } })).status, 200);
+  assert.equal((await call('POST', { body: { action: 'edit', id, session: other.session, data: input } })).status, 403);
+  assert.equal((await call('POST', { body: { action: 'me', id, session: host.session } })).json.isHost, true);
+  assert.equal((await call('POST', { body: { action: 'me', id, session: other.session } })).json.isHost, false);
+});
+
+test('로그인 응답: 계정당 한 번, 다른 기기에서도 본인 수정, mine에 표시', async () => {
+  const host = await signup(); const guest = await signup('손님');
+  const { json } = await call('POST', { body: { action: 'create', session: host.session, data: input } });
+  const id = json.event.id;
+  const r1 = await call('POST', { body: { action: 'rsvp', id, session: guest.session, data: { name: '손님', rsvp: 'maybe' } } });
+  const r2 = await call('POST', { body: { action: 'rsvp', id, session: guest.session, data: { name: '손님', rsvp: 'yes' } } });
+  assert.equal(r2.json.participants.length, 1);
+  assert.equal(r2.json.participant.id, r1.json.participant.id);
+  assert.equal(r2.json.participant.rsvp, 'yes');
+  const pid = r1.json.participant.id;
+  assert.equal((await call('POST', { body: { action: 'self', id, pid, session: guest.session, data: { late: 10 } } })).status, 200);
+  assert.equal((await call('POST', { body: { action: 'self', id, pid, session: host.session, data: { late: 20 } } })).status, 403);
+  const me = await call('POST', { body: { action: 'me', id, session: guest.session } });
+  assert.equal(me.json.participant.id, pid);
+  const mineGuest = await call('POST', { body: { action: 'mine', session: guest.session } });
+  assert.deepEqual(mineGuest.json.items.map((x) => [x.role, x.event.id]), [['guest', id]]);
+  const mineHost = await call('POST', { body: { action: 'mine', session: host.session } });
+  assert.equal(mineHost.json.items[0].role, 'host');
+  assert.equal((await call('POST', { body: { action: 'mine' } })).status, 401);
+});
+
+test('claim: 브라우저에 있던 주최·응답 기록을 계정으로 (토큰 검증)', async () => {
+  const a = await signup(); const b = await signup('b');
+  const { json } = await call('POST', { body: { action: 'create', session: a.session, data: input } });
+  const id = json.event.id;
+  const r = await call('POST', { body: { action: 'rsvp', id, data: { name: '익명', rsvp: 'yes' } } });
+  const res = await call('POST', { body: { action: 'claim', session: b.session,
+    hosted: [{ id, token: json.editToken }, { id, token: 'wrong' }],
+    joined: [{ id, pid: r.json.participant.id, ptoken: r.json.participantToken }, { id, pid: r.json.participant.id, ptoken: 'x' }] } });
+  assert.deepEqual(res.json, { hosted: 1, joined: 1 });
+  const mine = await call('POST', { body: { action: 'mine', session: b.session } });
+  assert.equal(mine.json.items[0].role, 'host');
+  assert.equal(mine.json.items[0].pid, r.json.participant.id);
+  assert.equal((await call('POST', { body: { action: 'self', id, pid: r.json.participant.id, session: b.session, data: { late: 10 } } })).status, 200);
 });
