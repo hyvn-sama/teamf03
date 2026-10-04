@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { session } from '../store.js';
 import { loginHref, confirmDelete } from '../access.js';
 import { daysUntil, countRsvp, seenCount, settleSummary, formatDate, formatTime, josa, changeSummary, lateList } from '../calc.js';
-import { esc, nl2br, icon, toast } from '../ui.js';
+import { esc, nl2br, icon } from '../ui.js';
 import { ddayBadge } from '../card.js';
 
 const changedText = (e) => josa(changeSummary(e), '이', '가');
@@ -123,29 +123,10 @@ export async function render(root, { isStale }) {
         ${icon('list', 'big')}
         <p>아직 만들거나 응답한 모임이 없어요.<br><span class="hint">안내장을 만들거나 받은 링크에서 응답하면 여기에 모여요.</span></p>
         <a class="btn primary" href="#/create">${icon('mail')}첫 안내장 만들기</a>
-        <button class="btn ghost" data-act="sample">샘플 모임 불러오기 (시연용)</button>
       </div>` : ''}
     ${today.map(todayCard).join('')}
     ${upcoming.length ? `<h2 class="section-title">다가오는 모임</h2><div class="ev-grid">${upcoming.map((x) => upcomingCard(x, tagOf(x))).join('')}</div>` : ''}
-    ${past.length ? `<h2 class="section-title muted">최근 종료된 모임</h2><div class="ev-grid">${past.map(pastCard).join('')}</div>` : ''}
-    ${items.length ? '<p class="sample-more"><button class="link-btn" data-act="sample">샘플 모임 불러오기 (시연용)</button></p>' : ''}`;
-
-  const sampleBtn = root.querySelector('[data-act="sample"]');
-  if (sampleBtn) {
-    sampleBtn.addEventListener('click', async () => {
-      sampleBtn.disabled = true;
-      sampleBtn.textContent = '불러오는 중…';
-      try {
-        const { seedSamples } = await import('../sample.js');
-        await seedSamples(api);
-        toast('샘플 모임 6개를 불러왔어요');
-        if (!isStale()) redraw();
-      } catch (err) {
-        toast(err.message, 'err');
-        sampleBtn.disabled = false;
-      }
-    });
-  }
+    ${past.length ? `<h2 class="section-title muted">최근 종료된 모임</h2><div class="ev-grid">${past.map(pastCard).join('')}</div>` : ''}`;
 
   const onClick = async (ev) => {
     const btn = ev.target.closest('[data-del]');

@@ -258,7 +258,7 @@ function localCall(action, { id, token, pid, ptoken, session: sess, data = {}, .
   }
 }
 
-// 로그인 상태면 모든 요청에 세션을 붙인다 (anonymous: 시연용 샘플처럼 일부러 빼야 할 때)
+// 로그인 상태면 모든 요청에 세션을 붙인다 (anonymous: 일부러 익명으로 보내야 할 때)
 async function call(action, args, { anonymous = false } = {}) {
   const s = !anonymous && session();
   const withSession = s ? { ...args, session: s.token } : args;

@@ -40,8 +40,6 @@
   .dash-head h1 { font-size: 26px; }
   .today-card { padding: 20px; }
 }
-.sample-more { text-align: center; margin-top: 32px; }
-.sample-more .link-btn { color: var(--muted); text-decoration: underline; }
 .role-tag { display: inline-flex; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; margin-left: 4px; letter-spacing: 0; }
 .role-tag.host { background: var(--dark); color: #fff; }
 .role-tag.guest { background: var(--blue-soft); color: var(--blue); }
