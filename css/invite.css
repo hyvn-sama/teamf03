@@ -13,6 +13,8 @@
 .row-label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .row-main { font-weight: 700; font-size: 16px; }
 .row-sub { color: var(--muted); font-size: 13px; }
+.map-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 13px; font-weight: 700; color: var(--brand); text-decoration: none; }
+.map-link .ic { width: 15px; height: 15px; }
 .invite-card .row.changed .row-main { color: var(--brand); }
 .invite-card .placeholder { color: var(--line-strong); font-weight: 600; }
 .changed-tag { background: var(--brand); color: #fff; }
@@ -48,6 +50,19 @@
 .lg { width: 8px; height: 8px; border-radius: 2px; margin-left: 4px; }
 .lg:first-child { margin-left: 0; }
 .lg.yes { background: var(--brand); } .lg.maybe { background: var(--blue); } .lg.no { background: var(--gray); }
+
+/* 누가 오나요? (참석자 이름) */
+.who { border-top: 1px solid var(--line); padding-top: 10px; margin-bottom: 12px; }
+.who summary { display: flex; align-items: center; gap: 4px; cursor: pointer; list-style: none; font-size: 14px; font-weight: 700; color: var(--ink-2); }
+.who summary::-webkit-details-marker { display: none; }
+.who summary .ic { width: 14px; height: 14px; transition: transform 0.15s; }
+.who[open] summary .ic { transform: rotate(90deg); }
+.who-group { margin-top: 10px; }
+.who-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.who-label .lg { margin-left: 0; }
+.who-names { display: flex; flex-wrap: wrap; gap: 6px; max-height: 180px; overflow-y: auto; }
+.who-name { padding: 3px 10px; border-radius: 999px; background: var(--gray-soft); font-size: 13px; color: var(--ink-2); }
+.who-name.me { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
 .settle-card { border: 1.5px solid var(--brand); display: grid; gap: 8px; }
 .settle-amount { font-size: 34px; color: var(--brand); line-height: 1.1; }
 .account { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--brand-softer); border-radius: 10px; padding: 12px; }

@@ -1,6 +1,6 @@
 // 안내장 카드 — 만들기 미리보기와 초대장 보기가 같이 쓴다
 import { ddayLabel, daysUntil, formatDate, timeRange, won, displayValue } from './calc.js';
-import { esc, nl2br, icon } from './ui.js';
+import { esc, nl2br, icon, mapUrl } from './ui.js';
 
 export function ddayBadge(date) {
   const n = daysUntil(date);
@@ -74,6 +74,7 @@ export function inviteCard(e, { changed = {}, preview = false, actions = '', see
             ${old('placeName', 'address')}
             <p class="row-main">${e.placeName ? esc(e.placeName) : '<span class="placeholder">장소</span>'}</p>
             ${e.address ? `<p class="row-sub">${esc(e.address)}</p>` : ''}
+            ${e.address && !preview ? `<a class="map-link" href="${esc(mapUrl(e))}" target="_blank" rel="noopener">${icon('map')}네이버 지도에서 보기</a>` : ''}
           </div>
         </div>
         ${chips ? `<div class="chips">${chips}</div>` : ''}
