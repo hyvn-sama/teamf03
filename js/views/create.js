@@ -1,6 +1,6 @@
 // 01 안내장 만들기  /  안내장 수정·재공유 (#/e/:id/edit) — 같은 폼을 쓴다
 import { api } from '../api.js';
-import { addHosted, session } from '../store.js';
+import { addHosted, removeHosted, session } from '../store.js';
 import { hostAccess, noHostView, loginHref } from '../access.js';
 import { EDIT_FIELDS, FIELD_LABELS, diffEvent, displayValue, todayStr, josa, supplyItems } from '../calc.js';
 import { esc, icon, toast, copyText, inviteUrl, shareInvite, pageHead } from '../ui.js';
@@ -135,6 +135,11 @@ export async function render(root, { id, query, edit }) {
             <p class="hint">내용은 그대로 두고 링크만 다시 보내요.</p>
             <div class="link-box"><span>${esc(inviteUrl(id))}</span><button class="btn sm dark copy-link" type="button">링크 복사</button></div>
             <button class="btn block share-again" type="button">카톡으로 다시 공유</button>
+          </div>
+          <div class="card card-pad delete-box">
+            <h3>안내장 삭제</h3>
+            <p class="hint">안내장과 응답${people.length ? ` ${people.length}개` : ''}·정산 기록이 모두 지워지고, 초대 링크도 더 이상 열리지 않아요. 되돌릴 수 없어요.</p>
+            <button class="btn block delete-event" type="button">${icon('alert')}이 안내장 삭제하기</button>
           </div>` : `
           <p class="preview-label">PREVIEW</p>
           <div class="preview"></div>
@@ -243,6 +248,21 @@ export async function render(root, { id, query, edit }) {
     root.querySelector('.save-share').addEventListener('click', save);
     root.querySelector('.copy-link').addEventListener('click', () => copyText(inviteUrl(id), '링크를 복사했어요'));
     root.querySelector('.share-again').addEventListener('click', () => shareInvite(original));
+    const delBtn = root.querySelector('.delete-event');
+    delBtn.addEventListener('click', async () => {
+      const who = people.length ? `\n응답한 ${people.length}명도 더 이상 안내장을 볼 수 없어요.` : '';
+      if (!window.confirm(`'${original.title}' 안내장을 삭제할까요?${who}\n삭제하면 되돌릴 수 없어요.`)) return;
+      delBtn.disabled = true;
+      try {
+        await api.remove(id, token);
+        removeHosted(id);
+        toast('안내장을 삭제했어요');
+        location.hash = '#/my';
+      } catch (err) {
+        toast(err.message, 'err');
+        delBtn.disabled = false;
+      }
+    });
   }
 
   update();

@@ -190,6 +190,12 @@ function localCall(action, { id, token, pid, ptoken, session: sess, data = {}, .
         joined++;
       }
       out = { hosted, joined };
+    } else if (action === 'delete') {
+      needHost();
+      delete db.events[id];
+      delete db.people[id];
+      Object.values(db.userEvents).forEach((mine) => { delete mine[id]; });
+      out = { ok: true, id };
     }
     if (out) {
       writeDb(db);
@@ -269,6 +275,7 @@ export const api = {
   settle: (id, token, data) => call('settle', { id, token, data }),
   host: (id, token, pid, data) => call('host', { id, token, pid, data }),
   each: (id, token, data) => call('each', { id, token, data }),
+  remove: (id, token) => call('delete', { id, token }),
   rsvp: (id, data, { anonymous = false } = {}) => call('rsvp', { id, data }, { anonymous }),
   self: (id, me, data) => call('self', { id, pid: me.pid, ptoken: me.token, data }),
   // 로그인

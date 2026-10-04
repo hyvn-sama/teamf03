@@ -31,6 +31,10 @@
 .change-box .save-share { margin: 16px 18px 18px; width: calc(100% - 36px); }
 .reshare h3 { font-size: 16px; }
 .reshare .hint { margin: 2px 0 12px; }
+.delete-box h3 { font-size: 16px; }
+.delete-box .hint { margin: 2px 0 12px; }
+.delete-box .delete-event { color: #b3321f; border-color: #e7b8ae; }
+.delete-box .delete-event:hover { background: #fbeae6; }
 .link-box { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border: 1px solid var(--line-strong); border-radius: 10px; margin-bottom: 10px; background: var(--brand-softer); }
 .link-box span { flex: 1; min-width: 0; font-size: 13px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

@@ -2,7 +2,7 @@
 //   GET  ?ping=1           저장소 연결 여부
 //   GET  ?id=              안내장 + 참가자
 //   POST {action, ...}     signup | login | logout | whoami | mine | me | claim  (로그인: session)
-//                          create(로그인 필수) | edit | settle | host | each   (주최자: token 또는 만든 사람 session)
+//                          create(로그인 필수) | edit | settle | host | each | delete   (주최자: token 또는 만든 사람 session)
 //                          rsvp | self                                       (참가자: pid + ptoken 또는 본인 session)
 import { createHash } from 'node:crypto';
 import {
@@ -261,6 +261,16 @@ async function handlePost(body) {
   if (action === 'each') {
     const input = needData();
     return bundle(await updateAsHost(id, token, user, (event) => setSupplyEach(event, input, now)));
+  }
+
+  if (action === 'delete') {
+    const event = await loadAsHost(id, token, user);
+    const participants = await db.getParticipants(id);
+    // 만든 사람·로그인해서 응답한 사람의 내 알림장에서도 뺀다
+    const phones = new Set([event.ownerPhone, ...participants.map((p) => p.userPhone)].filter(Boolean));
+    for (const phone of phones) await db.removeUserEvent(phone, id);
+    await db.deleteEvent(id);
+    return { ok: true, id };
   }
 
   if (action === 'host') {

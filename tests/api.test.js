@@ -283,3 +283,30 @@ test('리뷰 중요4: 계정 응답이 있는데 다른 기기의 익명 응답�
   const mine = await call('POST', { body: { action: 'mine', session: guest.session } });
   assert.equal(mine.json.items[0].pid, p1.id);
 });
+
+test('삭제: 주최자만, 안내장·응답·내 알림장 목록에서 모두 사라짐', async () => {
+  const host = await signup('주최자'); const guest = await signup('손님');
+  const created = await call('POST', { body: { action: 'create', session: host.session, data: input } });
+  const { id } = created.json.event;
+  await call('POST', { body: { action: 'rsvp', id, session: guest.session, data: { name: '손님', rsvp: 'yes' } } });
+  const anon = await call('POST', { body: { action: 'rsvp', id, data: { name: '익명', rsvp: 'yes' } } });
+
+  // 참석자는 로그인했든 응답 토큰이 있든 삭제 불가
+  assert.equal((await call('POST', { body: { action: 'delete', id, session: guest.session } })).status, 403);
+  assert.equal((await call('POST', { body: { action: 'delete', id, token: anon.json.participantToken } })).status, 403);
+  assert.equal((await call('GET', { query: { id, _: 1 } })).status, 200);
+
+  assert.equal((await call('POST', { body: { action: 'delete', id, session: host.session } })).status, 200);
+  assert.equal((await call('GET', { query: { id, _: 2 } })).status, 404);
+  assert.equal((await call('POST', { body: { action: 'delete', id, session: host.session } })).status, 404);
+  for (const s of [host.session, guest.session]) {
+    const mine = await call('POST', { body: { action: 'mine', session: s } });
+    assert.ok(!mine.json.items.some((x) => x.event.id === id), '내 알림장에서도 빠짐');
+  }
+
+  // 관리 링크(토큰)로도 삭제 가능
+  const second = await call('POST', { body: { action: 'create', session: host.session, data: input } });
+  const sid = second.json.event.id;
+  assert.equal((await call('POST', { body: { action: 'delete', id: sid, token: second.json.editToken } })).status, 200);
+  assert.equal((await call('GET', { query: { id: sid } })).status, 404);
+});

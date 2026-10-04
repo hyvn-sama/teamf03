@@ -132,3 +132,11 @@ export async function getParticipant(id, pid) {
 }
 
 export const deleteParticipant = (id, pid) => cmd('HDEL', peopleKey(id), pid);
+
+// 안내장 삭제: 안내장 문서와 참가자 해시를 함께 지운다
+export async function deleteEvent(id) {
+  await cmd('DEL', eventKey(id));
+  await cmd('DEL', peopleKey(id));
+}
+
+export const removeUserEvent = (phone, eventId) => cmd('HDEL', `user:${phone}:events`, eventId);
