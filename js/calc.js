@@ -223,6 +223,16 @@ export function changeSummary(e) {
   return [...new Set(latestChanges(e).map((c) => CHANGE_GROUP[c.field] || c.label))].join('·');
 }
 
+// 데이터의 마지막 변경 시각 — CDN 캐시로 받은 옛 데이터인지 구분할 때 씀
+export function dataStamp(event, ps) {
+  let stamp = event.updatedAt || '';
+  for (const p of ps) {
+    const t = p.updatedAt || p.respondedAt || '';
+    if (t > stamp) stamp = t;
+  }
+  return stamp;
+}
+
 // 정산 대상 = 참석자 중 '정산 제외'가 아닌 사람
 export const settleTargets = (ps) => ps.filter((p) => p.rsvp === 'yes' && p.settle !== 'excluded');
 

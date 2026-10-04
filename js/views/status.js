@@ -50,7 +50,7 @@ export async function render(root, { id, isStale }) {
     root.innerHTML = errorView('참석 현황은 안내장을 만든 주최자만 볼 수 있어요.', { href: `#/e/${id}`, label: '안내장 보기' });
     return;
   }
-  let data = await api.get(id);
+  let data = await api.get(id, { fresh: true });
   let busy = false;
   let gen = 0; // 내가 바꾼 횟수 — 진행 중이던 주기 새로고침 결과(옛 데이터)는 버림
 
@@ -126,7 +126,7 @@ export async function render(root, { id, isStale }) {
     if (busy || isStale() || document.hidden || document.activeElement?.matches('select')) return;
     const startGen = gen;
     try {
-      const fresh = await api.get(id);
+      const fresh = await api.get(id, { fresh: true });
       if (startGen !== gen || busy || isStale()) return;
       data = fresh;
       draw();

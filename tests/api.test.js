@@ -42,13 +42,15 @@ const { default: handler } = await import('../api/events.js');
 async function call(method, { query = {}, body } = {}) {
   let status = 0;
   let json = null;
+  const headers = {};
   const res = {
-    setHeader() {},
+    headers,
+    setHeader(k, v) { headers[k.toLowerCase()] = v; },
     status(s) { status = s; return this; },
     json(j) { json = j; return this; },
   };
   await handler({ method, query, body }, res);
-  return { status, json };
+  return { status, json, headers };
 }
 
 const input = { title: '가을 동아리 모임', date: '2026-10-31', startTime: '17:00', placeName: '하이브 라운지 3층' };
@@ -137,4 +139,22 @@ test('잘못된 요청 본문은 400', async () => {
   assert.equal((await call('POST', { body: '{깨진 json' })).status, 400);
   assert.equal((await call('POST', { body: { action: 'create', data: null } })).status, 400);
   assert.equal((await call('POST', { body: null })).status, 400);
+});
+
+test('안내장 조회는 CDN에 5초 캐시, 쓰기·ping·오류는 캐시 안 함', async () => {
+  const { json } = await call('POST', { body: { action: 'create', data: input } });
+  const got = await call('GET', { query: { id: json.event.id } });
+  assert.match(got.headers['cache-control'], /s-maxage=5/);
+  assert.match((await call('GET', { query: { ping: '1' } })).headers['cache-control'], /no-store/);
+  assert.match((await call('GET', { query: { id: 'zzzzzzzz' } })).headers['cache-control'], /no-store/);
+  assert.match((await call('POST', { body: { action: 'rsvp', id: json.event.id, data: { name: 'a', rsvp: 'yes' } } })).headers['cache-control'], /no-store/);
+});
+
+test('응답마다 stamp(마지막 변경 시각)가 붙어 옛 캐시를 구분할 수 있음', async () => {
+  const { json } = await call('POST', { body: { action: 'create', data: input } });
+  const id = json.event.id;
+  const s1 = (await call('GET', { query: { id } })).json.stamp;
+  await new Promise((r) => setTimeout(r, 5));
+  const r = await call('POST', { body: { action: 'rsvp', id, data: { name: 'a', rsvp: 'yes' } } });
+  assert.ok(r.json.stamp > s1);
 });

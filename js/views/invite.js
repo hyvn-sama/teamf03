@@ -10,7 +10,9 @@ import {
 } from '../ui.js';
 import { inviteCard, ddayBadge, seenPill } from '../card.js';
 
-const POLL_MS = 15000;
+// 참석자는 1분, 주최자는 15초마다 새로고침 (수백 명이 동시에 열어도 부담 없게)
+const POLL_HOST_MS = 15000;
+const POLL_GUEST_MS = 60000;
 
 // 다른 기기에서 이어서 쓰는 링크 (토큰은 # 뒤에 있어 서버로 전송되지 않음)
 const adminUrl = (id, token) => `${inviteUrl(id)}?k=${encodeURIComponent(token)}`;
@@ -290,8 +292,8 @@ export async function render(root, { id, query, isStale }) {
     if (query.p) toast('내 응답을 이 기기에 연결했어요');
   }
 
-  let data = await api.get(id);
   const isHost = !!hostToken(id);
+  let data = await api.get(id, { fresh: isHost });
   const isNew = query.new === '1';
   let busy = false;
   let gen = 0; // 내가 바꾼 횟수 — 그 사이 끝난 주기 새로고침 결과(옛 데이터)는 버린다
@@ -448,12 +450,13 @@ export async function render(root, { id, query, isStale }) {
     if (busy || modal || isStale() || document.hidden || document.activeElement?.id === 'rsvp-name') return;
     const startGen = gen;
     try {
-      const fresh = await api.get(id);
+      const fresh = await api.get(id, { fresh: isHost });
       if (startGen !== gen || busy || isStale()) return; // 그 사이 내가 바꿨으면 옛 데이터라 버림
+      if (fresh.stamp && data.stamp && fresh.stamp < data.stamp) return; // CDN에 남은 더 오래된 응답
       data = fresh;
       draw();
     } catch { /* 다음 주기에 다시 */ }
-  }, POLL_MS);
+  }, isHost ? POLL_HOST_MS : POLL_GUEST_MS);
   return () => {
     clearInterval(timer);
     root.removeEventListener('click', onClick);

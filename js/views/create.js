@@ -104,7 +104,7 @@ export async function render(root, { id, query, edit }) {
       root.innerHTML = errorView('이 안내장을 만든 브라우저에서만 수정할 수 있어요.', { href: `#/e/${id}`, label: '안내장 보기' });
       return;
     }
-    const loaded = await api.get(id);
+    const loaded = await api.get(id, { fresh: true });
     original = loaded.event;
     people = loaded.participants;
   }

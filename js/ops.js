@@ -135,6 +135,7 @@ export function newParticipant(raw, event, now = new Date()) {
     settle: defaultSettle(rsvp),
     seenVersion: event.changeVersion || 0,
     respondedAt: now.toISOString(),
+    updatedAt: now.toISOString(),
     paidAt: null,
     brings: [],
     late: null,
@@ -173,6 +174,7 @@ export function selfUpdate(p, raw, event, now = new Date()) {
     if (minutes && next.rsvp !== 'yes') throw new InputError('참석자만 늦는다고 알릴 수 있어요.');
     next.late = minutes ? { minutes, at: now.toISOString() } : null;
   }
+  next.updatedAt = now.toISOString();
   return next;
 }
 
@@ -196,5 +198,6 @@ export function hostUpdate(p, raw, event, now = new Date()) {
     if (raw.settle === 'done') next.paidAt = next.paidAt || now.toISOString();
     if (raw.settle === 'unpaid') next.paidAt = null;
   }
+  next.updatedAt = now.toISOString();
   return next;
 }

@@ -12,7 +12,7 @@ export async function render(root, { id }) {
     root.innerHTML = errorView('정산 등록은 안내장을 만든 주최자만 할 수 있어요.', { href: `#/e/${id}`, label: '안내장 보기' });
     return;
   }
-  let { event: e, participants: ps } = await api.get(id);
+  let { event: e, participants: ps } = await api.get(id, { fresh: true });
   // 정산 인원 = 참석자 중 '정산 제외'가 아닌 사람 (참석 현황에서 지정)
   let attending = settleTargets(ps);
   const s0 = e.settlement || {};
@@ -191,7 +191,7 @@ export async function render(root, { id }) {
     form.querySelector('.submit').disabled = true;
     try {
       // 화면을 연 뒤 정산 대상이 바뀌었는지 마지막으로 확인
-      const fresh = (await api.get(id)).participants;
+      const fresh = (await api.get(id, { fresh: true })).participants;
       const latest = settleTargets(fresh);
       if (latest.length !== attending.length) {
         ps = fresh;

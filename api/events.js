@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import {
   InputError, createEvent, editEvent, cleanSettlement, newParticipant, selfUpdate, hostUpdate, setSupplyEach, newId,
 } from '../js/ops.js';
+import { dataStamp } from '../js/calc.js';
 import * as db from './_store.js';
 
 const hash = (token) => createHash('sha256').update(String(token)).digest('hex');
@@ -68,8 +69,16 @@ async function updatePerson(id, pid, fn) {
 
 async function bundle(event) {
   const participants = await db.getParticipants(event.id);
-  return { event: publicEvent(event), participants: participants.map(publicParticipant) };
+  return {
+    event: publicEvent(event),
+    participants: participants.map(publicParticipant),
+    stamp: dataStamp(event, participants),
+  };
 }
+
+// 같은 안내장을 수백 명이 열어도 서버·Redis에는 5초에 한 번만 가도록 CDN이 대신 응답
+// (브라우저에는 s-maxage가 전달되지 않음. 방금 내가 바꾼 내용은 클라이언트가 캐시를 건너뛰어 받음)
+const CDN_CACHE = 'public, s-maxage=5, stale-while-revalidate=10';
 
 async function handlePost(body) {
   const { action, id, token, pid, ptoken } = body;
@@ -160,7 +169,11 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, storage: db.hasStorage });
     }
     if (!db.hasStorage) throw new HttpError(503, '서버 저장소가 연결되지 않았어요.');
-    if (req.method === 'GET') return res.status(200).json(await bundle(await load(req.query.id)));
+    if (req.method === 'GET') {
+      const body = await bundle(await load(req.query.id));
+      res.setHeader('Cache-Control', CDN_CACHE);
+      return res.status(200).json(body);
+    }
     if (req.method === 'POST') {
       const body = parseBody(req);
       if (!body || typeof body !== 'object') throw new HttpError(400, '요청 형식이 올바르지 않아요.');

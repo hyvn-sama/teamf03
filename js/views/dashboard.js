@@ -83,7 +83,7 @@ function pastCard({ event: e, participants: ps }) {
 
 export async function render(root, { isStale }) {
   const list = hostedList();
-  const loaded = await Promise.all(list.map((h) => api.get(h.id).catch((err) => ({ missing: h.id, err }))));
+  const loaded = await Promise.all(list.map((h) => api.get(h.id, { fresh: true }).catch((err) => ({ missing: h.id, err }))));
   if (isStale()) return;
   // 서버에서 지워진 안내장은 목록에서 정리
   loaded.filter((x) => x.missing && /찾을 수 없/.test(x.err.message)).forEach((x) => removeHosted(x.missing));
