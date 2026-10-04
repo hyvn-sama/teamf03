@@ -55,7 +55,7 @@ async function guest(i) {
   await sleep(Math.random() * 10000); // 10초에 걸쳐 링크를 엶
   await req('GET', `/api/events?id=${id}`);
   const r = await req('POST', '/api/events', { action: 'rsvp', id, data: { name: `손님${i}`, rsvp: i % 5 ? 'yes' : 'maybe' } });
-  if (r.participantToken && i % 3 === 0) {
+  if (r.participantToken && i % 3 === 0 && i % 5) { // 준비물 담당은 참석자만 (미정은 거절됨)
     await req('POST', '/api/events', { action: 'self', id, pid: r.participant.id, ptoken: r.participantToken, data: { brings: ['간식'] } });
   }
   while (Date.now() < end) {
