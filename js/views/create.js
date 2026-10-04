@@ -1,8 +1,9 @@
 // 01 안내장 만들기  /  안내장 수정·재공유 (#/e/:id/edit) — 같은 폼을 쓴다
 import { api } from '../api.js';
-import { addHosted, hostToken } from '../store.js';
+import { addHosted, session } from '../store.js';
+import { hostAccess, noHostView, loginHref } from '../access.js';
 import { EDIT_FIELDS, FIELD_LABELS, diffEvent, displayValue, todayStr, josa, supplyItems } from '../calc.js';
-import { esc, icon, toast, copyText, inviteUrl, shareInvite, pageHead, errorView } from '../ui.js';
+import { esc, icon, toast, copyText, inviteUrl, shareInvite, pageHead } from '../ui.js';
 import { inviteCard } from '../card.js';
 
 const REQUIRED = ['title', 'date', 'startTime', 'placeName'];
@@ -98,12 +99,19 @@ export async function render(root, { id, query, edit }) {
   let people = [];
   let token = null;
 
+  // 안내장 만들기는 로그인 필수 (어느 기기에서든 내 알림장에서 관리하려고)
+  if (!edit && !session()) {
+    location.hash = loginHref(`/create${query.from ? `?from=${query.from}` : ''}`);
+    return;
+  }
+
   if (edit) {
-    token = hostToken(id);
-    if (!token) {
-      root.innerHTML = errorView('이 안내장을 만든 브라우저에서만 수정할 수 있어요.', { href: `#/e/${id}`, label: '안내장 보기' });
+    const access = await hostAccess(id);
+    if (!access.ok) {
+      root.innerHTML = noHostView(id, '안내장은 만든 사람만 수정할 수 있어요.', `/e/${id}/edit`);
       return;
     }
+    token = access.token;
     const loaded = await api.get(id, { fresh: true });
     original = loaded.event;
     people = loaded.participants;

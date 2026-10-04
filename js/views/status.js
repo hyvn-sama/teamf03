@@ -1,8 +1,8 @@
 // 03 참석 현황 (주최자) — 응답 자동 집계, 참석·정산 상태 변경
 import { api } from '../api.js';
-import { hostToken } from '../store.js';
+import { hostAccess, noHostView } from '../access.js';
 import { countRsvp, settleSummary, settleCountMismatch, won } from '../calc.js';
-import { esc, icon, toast, pageHead, errorView, RSVP_LABEL, SETTLE_LABEL, SETTLE_ICON } from '../ui.js';
+import { esc, icon, toast, pageHead, RSVP_LABEL, SETTLE_LABEL, SETTLE_ICON } from '../ui.js';
 
 const POLL_MS = 15000;
 
@@ -45,9 +45,9 @@ function row(p, settled) {
 }
 
 export async function render(root, { id, isStale }) {
-  const token = hostToken(id);
-  if (!token) {
-    root.innerHTML = errorView('참석 현황은 안내장을 만든 주최자만 볼 수 있어요.', { href: `#/e/${id}`, label: '안내장 보기' });
+  const { ok, token } = await hostAccess(id);
+  if (!ok) {
+    root.innerHTML = noHostView(id, '참석 현황은 주최자만 볼 수 있어요.', `/e/${id}/status`);
     return;
   }
   let data = await api.get(id, { fresh: true });

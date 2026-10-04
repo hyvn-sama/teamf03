@@ -1,15 +1,15 @@
 // 04 정산 안내 (주최자) — 총 비용 ÷ 정산 인원 자동 계산, 개인별 조정, 계좌 등록
 import { api } from '../api.js';
-import { hostToken } from '../store.js';
+import { hostAccess, noHostView } from '../access.js';
 import { perPerson, settleSummary, settleTargets, won } from '../calc.js';
-import { esc, icon, toast, pageHead, errorView, inviteUrl, copyText } from '../ui.js';
+import { esc, icon, toast, pageHead, inviteUrl, copyText } from '../ui.js';
 
 const num = (v) => (v === '' || v == null ? 0 : Number(v));
 
 export async function render(root, { id }) {
-  const token = hostToken(id);
-  if (!token) {
-    root.innerHTML = errorView('정산 등록은 안내장을 만든 주최자만 할 수 있어요.', { href: `#/e/${id}`, label: '안내장 보기' });
+  const { ok, token } = await hostAccess(id);
+  if (!ok) {
+    root.innerHTML = noHostView(id, '정산 등록은 주최자만 할 수 있어요.', `/e/${id}/settle`);
     return;
   }
   let { event: e, participants: ps } = await api.get(id, { fresh: true });

@@ -1,0 +1,28 @@
+/* 로그인 · 회원가입 */
+.login-wrap { display: flex; justify-content: center; padding: 24px 0; }
+.login-card { width: 100%; max-width: 420px; display: grid; gap: 14px; }
+.login-card h1 { font-size: 26px; letter-spacing: -0.02em; }
+.login-tabs { justify-self: start; }
+.login-card form { display: grid; gap: 12px; }
+.login-field { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
+.login-field .hint { font-weight: 400; }
+.login-card .btn.primary { min-height: 50px; font-size: 16px; }
+.login-note { display: flex; gap: 6px; align-items: flex-start; }
+.login-note .ic { margin-top: 2px; flex: none; }
+.auth-user { color: var(--ink-2); font-size: 13px; }
+.nav-logout { border: 0; background: none; padding: 8px 6px; color: var(--muted); font-size: 13px; text-decoration: underline; }
+@media (max-width: 520px) {
+  .auth-user { display: none; }
+}
+body[data-view='home'] .auth-link { visibility: visible; }
+
+/* 휴대폰 상단바: 로그인 영역이 생겨도 한 줄 유지 */
+.logo, .nav a, .nav button { white-space: nowrap; }
+@media (max-width: 520px) {
+  .topbar-inner { gap: 6px; }
+  .logo { font-size: 0; gap: 0; }
+  .logo-mark { font-size: 15px; }
+  .nav { gap: 2px; }
+  .nav-link { padding: 8px 8px; font-size: 13px; }
+  .nav-my { padding: 7px 10px; font-size: 13px; }
+}

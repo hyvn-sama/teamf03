@@ -1,11 +1,13 @@
 // 해시 라우터: #/경로?쿼리 → 화면 모듈의 render(root, ctx)
-import { init, getMode } from './api.js';
-import { errorView, loadingView } from './ui.js';
+import { init, getMode, api } from './api.js';
+import { errorView, loadingView, esc, toast } from './ui.js';
+import { session, setSession, clearSession } from './store.js';
 
 const routes = [
   { path: /^\/?$/, view: 'home', nav: 'home' },
   { path: /^\/create$/, view: 'create', nav: 'create' },
   { path: /^\/my$/, view: 'dashboard', nav: 'my' },
+  { path: /^\/login$/, view: 'login', nav: '' },
   { path: /^\/e\/([a-z0-9]+)$/, view: 'invite', nav: '' },
   { path: /^\/e\/([a-z0-9]+)\/edit$/, view: 'create', nav: 'my', edit: true },
   { path: /^\/e\/([a-z0-9]+)\/status$/, view: 'status', nav: 'my' },
@@ -64,11 +66,49 @@ function showModeBanner(mode) {
   }
 }
 
-window.addEventListener('hashchange', render);
+// 상단바 로그인 영역
+function renderAuth() {
+  const slot = document.getElementById('auth-slot');
+  const s = session();
+  if (s) {
+    slot.innerHTML = `<span class="auth-user">${esc(s.user.name)} 님</span><button type="button" class="nav-logout" data-logout>로그아웃</button>`;
+  } else {
+    const here = (location.hash.replace(/^#/, '') || '/').split('?')[0];
+    const next = here === '/login' ? '/my' : here;
+    slot.innerHTML = `<a class="nav-link auth-link" href="#/login?next=${encodeURIComponent(next)}">로그인</a>`;
+  }
+}
+
+document.getElementById('auth-slot').addEventListener('click', async (ev) => {
+  if (!ev.target.closest('[data-logout]')) return;
+  await api.logout().catch(() => {});
+  clearSession();
+  renderAuth();
+  toast('로그아웃했어요');
+  location.hash = '#/';
+});
+window.addEventListener('moim:login', renderAuth);
+window.addEventListener('moim:logout', () => {
+  renderAuth();
+  toast('로그인이 만료됐어요. 다시 로그인해주세요.', 'err');
+});
+
+window.addEventListener('hashchange', () => {
+  renderAuth();
+  render();
+});
 
 root.innerHTML = loadingView(); // 서버 연결 확인(첫 접속 시 1~2초)하는 동안 빈 화면 대신
-init().then((mode) => {
+init().then(async (mode) => {
   showModeBanner(mode);
+  // 저장된 로그인이 아직 유효한지 확인하고 이름을 최신으로 (만료됐으면 api.js가 정리)
+  if (session()) {
+    try {
+      const { user } = await api.whoami();
+      setSession({ ...session(), user });
+    } catch { /* 401이면 이미 정리됨, 네트워크 오류면 그대로 둠 */ }
+  }
+  renderAuth();
   render();
 });
 
