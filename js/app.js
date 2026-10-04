@@ -66,6 +66,7 @@ function showModeBanner(mode) {
 
 window.addEventListener('hashchange', render);
 
+root.innerHTML = loadingView(); // 서버 연결 확인(첫 접속 시 1~2초)하는 동안 빈 화면 대신
 init().then((mode) => {
   showModeBanner(mode);
   render();

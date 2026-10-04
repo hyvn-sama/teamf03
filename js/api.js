@@ -12,7 +12,8 @@ export class ApiError extends Error {}
 
 export async function init() {
   try {
-    const res = await fetch('/api/events?ping=1', { cache: 'no-store' });
+    // 서버가 너무 늦게 답하면 기다리지 않고 체험 모드로 (빈 화면 방지)
+    const res = await fetch('/api/events?ping=1', { cache: 'no-store', signal: AbortSignal.timeout(8000) });
     const json = res.ok ? await res.json() : null;
     mode = json && json.storage ? 'server' : 'local';
   } catch {
