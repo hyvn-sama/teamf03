@@ -1,8 +1,15 @@
 // 부하 테스트: 시연처럼 N명이 같은 안내장을 열고, 응답하고, 화면을 켜 둔 상황을 흉내 낸다.
-// 실행: node tools/loadtest.mjs https://teamf03.vercel.app 400 60
+// 실행: MOIM_SESSION=<세션> node tools/loadtest.mjs https://teamf03.vercel.app 400 60
 //        (주소, 인원, 지속 초) — 테스트 안내장 1개와 참가자 N명이 실제 저장소에 생긴다 (120일 뒤 자동 삭제)
+//        안내장 만들기에 로그인이 필요해서, 테스트 계정으로 로그인한 브라우저의
+//        개발자도구 → Application → Local Storage → moim.session 의 token 값을 MOIM_SESSION에 넣는다.
 const [base = 'https://teamf03.vercel.app', people = '400', seconds = '60'] = process.argv.slice(2);
 const N = Number(people);
+const SESSION = process.env.MOIM_SESSION;
+if (!SESSION) {
+  console.error('MOIM_SESSION 환경변수에 테스트 계정 세션을 넣어주세요 (브라우저 개발자도구 → Local Storage → moim.session 의 token).');
+  process.exit(1);
+}
 const DURATION = Number(seconds) * 1000;
 const POLL_MS = 60000 / 4; // 실제 참석자는 60초, 여기서는 더 가혹하게 15초
 
@@ -41,6 +48,7 @@ if (!ping.storage) {
 
 const created = await req('POST', '/api/events', {
   action: 'create',
+  session: SESSION,
   data: { title: '[부하 테스트] 삭제 예정', date: '2026-12-31', startTime: '19:00', placeName: '테스트 장소', supplies: '간식, 음료' },
 });
 const id = created.event && created.event.id;
