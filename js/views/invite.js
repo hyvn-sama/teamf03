@@ -1,12 +1,13 @@
 // 02 초대장 보기 (참석자 화면) + D-DAY 당일 모드
 import { api, getMode } from '../api.js';
-import { hostToken, addHosted, myself, setMyself, localSeen, setLocalSeen } from '../store.js';
+import { hostToken, addHosted, myself, setMyself, localSeen, setLocalSeen, joinedList } from '../store.js';
+import { syncUrl } from '../sync.js';
 import {
   countRsvp, seenCount, amountFor, daysUntil, formatDate, formatTime, timeLeft, won, displayValue,
   supplyStatus, lateList, changeSummary, josa, pendingChanges, latestChanges, googleCalendarUrl,
 } from '../calc.js';
 import {
-  esc, nl2br, icon, toast, copyText, inviteUrl, shareInvite, mapUrl, errorView, RSVP_LABEL,
+  esc, nl2br, icon, toast, copyText, writeClipboard, inviteUrl, shareInvite, mapUrl, errorView, RSVP_LABEL,
 } from '../ui.js';
 import { inviteCard, ddayBadge, seenPill } from '../card.js';
 
@@ -16,7 +17,9 @@ const POLL_GUEST_MS = 60000;
 
 // 다른 기기에서 이어서 쓰는 링크 (토큰은 # 뒤에 있어 서버로 전송되지 않음)
 const adminUrl = (id, token) => `${inviteUrl(id)}?k=${encodeURIComponent(token)}`;
-const meUrl = (id, me) => `${inviteUrl(id)}?p=${encodeURIComponent(me.pid)}&t=${encodeURIComponent(me.token)}`;
+// 응답한 모임만 담은 옮기기 링크 — 관리 토큰은 넣지 않아 단톡방에 잘못 붙여넣어도 내 안내장은 안전
+const responsesSyncUrl = () => syncUrl(`${location.origin}${location.pathname}`, { joined: joinedList() });
+const SYNC_COPIED = '옮기기 링크를 복사했어요. 카톡 나와의 채팅에 붙여넣어 두면 다른 기기에서도 내 알림장에 보여요.';
 
 const localWarning = () => (getMode() === 'local'
   ? `<p class="local-warn">${icon('alert')}지금은 체험 모드라 이 링크는 <b>이 브라우저에서만</b> 열려요. 다른 사람·다른 기기와 공유하려면 서버 저장소를 연결해야 해요.</p>`
@@ -79,7 +82,7 @@ function rsvpPanel(me) {
       <h3>나의 참석 여부</h3>
       ${me
         ? `<p class="hint"><b>${esc(me.name)}</b> 님은 <b>${RSVP_LABEL[me.rsvp]}</b>으로 응답했어요. 바꾸려면 다시 눌러주세요.</p>
-           <p class="hint my-link">다른 기기에서 이어서 하려면 <button class="link-btn" data-act="copy-me">내 응답 링크 복사</button></p>`
+           <p class="hint my-link">다른 기기의 내 알림장에서도 보려면 <button class="link-btn" data-act="copy-me">옮기기 링크 복사</button> · 나만 보는 곳에 보관하세요</p>`
         : `<p class="hint">아직 응답하지 않았어요. 이름을 적고 선택해주세요.</p>
            <label class="sr-only" for="rsvp-name">이름</label>
            <input class="input" id="rsvp-name" maxlength="20" placeholder="이름 (예: 송다은)" autocomplete="name">`}
@@ -87,7 +90,23 @@ function rsvpPanel(me) {
     </section>`;
 }
 
-function attendancePanel(e, participants, isHost) {
+// 누가 오나요? — 주최자가 아니어도 응답한 사람 이름을 볼 수 있다 (이름·응답만, 정산 정보는 제외)
+function whoList(participants, me, open) {
+  if (!participants.length) return '';
+  const group = (r) => participants.filter((p) => p.rsvp === r);
+  const names = (list) => list.map((p) => `<span class="who-name${me && me.id === p.id ? ' me' : ''}">${esc(p.name)}${me && me.id === p.id ? ' (나)' : ''}</span>`).join('');
+  return `
+    <details class="who"${open ? ' open' : ''}>
+      <summary>누가 오나요? ${icon('next')}</summary>
+      ${['yes', 'maybe', 'no'].filter((r) => group(r).length).map((r) => `
+        <div class="who-group">
+          <p class="who-label"><span class="lg ${r}"></span>${RSVP_LABEL[r]} ${group(r).length}</p>
+          <div class="who-names">${names(group(r))}</div>
+        </div>`).join('')}
+    </details>`;
+}
+
+function attendancePanel(e, participants, isHost, me, whoOpen) {
   const c = countRsvp(participants);
   const pct = (n) => (c.total ? (n / c.total) * 100 : 0);
   return `
@@ -95,6 +114,7 @@ function attendancePanel(e, participants, isHost) {
       <div class="att-head"><h3>참석 현황</h3><p><b class="serif">${c.yes}</b>명 참석 예정</p></div>
       <div class="bar"><i class="yes" style="width:${pct(c.yes)}%"></i><i class="maybe" style="width:${pct(c.maybe)}%"></i><i class="no" style="width:${pct(c.no)}%"></i></div>
       <p class="legend"><span class="lg yes"></span>참석 ${c.yes}<span class="lg maybe"></span>미정 ${c.maybe}<span class="lg no"></span>불참 ${c.no}</p>
+      ${whoList(participants, me, whoOpen)}
       ${isHost ? `<a class="btn sm block" href="#/e/${e.id}/status">참석자 명단 · 정산 상세보기 ${icon('next')}</a>` : ''}
     </section>`;
 }
@@ -227,7 +247,7 @@ function fullView(data, ctx) {
         </section>
         ${rsvpPanel(me)}
         ${settlePanel(e, me)}
-        ${attendancePanel(e, participants, isHost)}
+        ${attendancePanel(e, participants, isHost, me, ctx.whoOpen)}
       </aside>
     </div>
     ${me ? '' : `<button class="btn primary rsvp-jump" data-act="jump-rsvp">참석 여부 응답하기</button>`}`;
@@ -298,16 +318,19 @@ export async function render(root, { id, query, isStale }) {
   let busy = false;
   let gen = 0; // 내가 바꾼 횟수 — 그 사이 끝난 주기 새로고침 결과(옛 데이터)는 버린다
   let modal = null; // 'seen' | 'supply'
+  let whoOpen = false; // "누가 오나요?" 펼침 상태 — 새로고침으로 다시 그려도 유지
 
   const ctxOf = () => {
     const auth = myself(id);
     // 토큰이 없는 예전 기록은 본인 확인을 못 하므로 다시 응답하게 한다
     const me = (auth && auth.token && data.participants.find((p) => p.id === auth.pid)) || null;
     const seenVer = me ? me.seenVersion || 0 : localSeen(id);
-    return { me, auth, isHost, pending: pendingChanges(data.event, seenVer), isNew };
+    return { me, auth, isHost, pending: pendingChanges(data.event, seenVer), isNew, whoOpen };
   };
 
   const draw = () => {
+    const who = root.querySelector('details.who');
+    if (who) whoOpen = who.open;
     const ctx = ctxOf();
     const today = daysUntil(data.event.date) === 0 && query.view !== 'full';
     const typed = root.querySelector('#rsvp-name');
@@ -330,7 +353,7 @@ export async function render(root, { id, query, isStale }) {
     gen++;
     try {
       data = await fn();
-      if (done) toast(done);
+      if (done) toast(typeof done === 'function' ? done() : done);
       draw();
     } catch (err) {
       toast(err.message, 'err');
@@ -384,11 +407,14 @@ export async function render(root, { id, query, isStale }) {
         toast('이름을 먼저 적어주세요', 'err');
         return;
       }
+      let copied = false;
       run(async () => {
         const res = await api.rsvp(id, { name, rsvp });
         setMyself(id, res.participant.id, res.participantToken);
+        // 응답하면 옮기기 링크(응답 기록만)를 바로 복사 — 브라우저가 막으면 카드의 복사 버튼으로
+        copied = await writeClipboard(responsesSyncUrl());
         return res;
-      }, rsvp === 'yes' ? '참석으로 응답했어요. 캘린더에도 추가해보세요!' : '응답했어요');
+      }, () => `${rsvp === 'yes' ? '참석으로 응답했어요.' : '응답했어요.'}${copied ? ' 옮기기 링크도 복사했어요. 카톡 나와의 채팅에 붙여넣어 두세요.' : ''}`);
       return;
     }
 
@@ -414,7 +440,7 @@ export async function render(root, { id, query, isStale }) {
       return;
     }
     if (act === 'copy-admin') copyText(adminUrl(id, token), '관리 링크를 복사했어요. 참석자에게는 보내지 마세요.');
-    if (act === 'copy-me' && auth) copyText(meUrl(id, auth), '내 응답 링크를 복사했어요. 다른 기기에서 열면 이어서 쓸 수 있어요.');
+    if (act === 'copy-me' && auth) copyText(responsesSyncUrl(), SYNC_COPIED);
     if (act === 'jump-rsvp') {
       const card = root.querySelector('.rsvp-card');
       card.scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -51,9 +51,11 @@ export function toast(message, kind = 'ok') {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
 
-export async function copyText(text, done = '복사했어요') {
+// 복사 성공 여부만 돌려준다 (서버 응답을 기다린 뒤처럼 브라우저가 막으면 false)
+export async function writeClipboard(text) {
   try {
     await navigator.clipboard.writeText(text);
+    return true;
   } catch {
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -61,9 +63,17 @@ export async function copyText(text, done = '복사했어요') {
     ta.style.opacity = '0';
     document.body.appendChild(ta);
     ta.select();
-    document.execCommand('copy');
+    let ok = false;
+    try {
+      ok = document.execCommand('copy');
+    } catch { /* 지원 안 함 */ }
     ta.remove();
+    return ok;
   }
+}
+
+export async function copyText(text, done = '복사했어요') {
+  await writeClipboard(text);
   toast(done);
 }
 
