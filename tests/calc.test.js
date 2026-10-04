@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   daysUntil, ddayLabel, formatDate, formatTime, timeRange, countRsvp, defaultSettle,
-  perPerson, amountFor, settleSummary, diffEvent, seenCount, toICS, won, supplyItems, supplyStatus, lateList,
+  perPerson, amountFor, settleSummary, diffEvent, seenCount, googleCalendarUrl, won, supplyItems, supplyStatus, lateList,
   pendingChanges, changeSummary, settleTargets, settleCountMismatch,
 } from '../js/calc.js';
 
@@ -72,12 +72,15 @@ test('seenCount: 최신 변경을 확인한 인원', () => {
   assert.deepEqual(seenCount(list, 2), { seen: 2, total: 3 });
 });
 
-test('toICS: 캘린더 파일에 모임명·시간·장소', () => {
-  const ics = toICS({ id: 'x', title: '가을, 모임', date: '2026-10-31', startTime: '17:00', endTime: '', placeName: '라운지', address: '서울' });
-  assert.match(ics, /DTSTART:20261031T170000/);
-  assert.match(ics, /DTEND:20261031T190000/); // 종료 시간 없으면 2시간
-  assert.match(ics, /SUMMARY:가을\\, 모임/);
-  assert.match(ics, /LOCATION:라운지 서울/);
+test('googleCalendarUrl: 구글 캘린더 일정 추가 화면으로 바로 연결', () => {
+  const url = new URL(googleCalendarUrl({ title: '가을 & 모임', date: '2026-10-31', startTime: '17:00', endTime: '', placeName: '라운지', address: '서울', supplies: '컵', notes: '주차 가능' }, 'https://teamf03.vercel.app/#/e/abc'));
+  assert.equal(url.origin + url.pathname, 'https://calendar.google.com/calendar/render');
+  assert.equal(url.searchParams.get('action'), 'TEMPLATE');
+  assert.equal(url.searchParams.get('text'), '가을 & 모임');
+  assert.equal(url.searchParams.get('dates'), '20261031T170000/20261031T190000'); // 종료 없으면 2시간
+  assert.equal(url.searchParams.get('ctz'), 'Asia/Seoul');
+  assert.equal(url.searchParams.get('location'), '라운지 서울');
+  assert.match(url.searchParams.get('details'), /준비물: 컵[\s\S]*주차 가능[\s\S]*teamf03\.vercel\.app/);
 });
 
 test('won: 금액 표시', () => {
@@ -112,10 +115,9 @@ test('lateList: 참석자 중 늦는다고 알린 사람', () => {
   assert.deepEqual(lateList(ps).map((p) => p.name), ['a']);
 });
 
-test('toICS: 자정을 넘기면 종료 날짜가 다음 날, DTSTAMP는 UTC', () => {
-  const ics = toICS({ id: 'x', title: 't', date: '2026-10-10', startTime: '22:00', endTime: '01:00', placeName: 'p' });
-  assert.match(ics, /DTEND:20261011T010000/);
-  assert.match(ics, /DTSTAMP:\d{8}T\d{6}Z/);
+test('googleCalendarUrl: 자정을 넘기는 모임은 종료가 다음 날', () => {
+  const url = new URL(googleCalendarUrl({ title: 't', date: '2026-10-10', startTime: '22:00', endTime: '01:00', placeName: 'p' }));
+  assert.equal(url.searchParams.get('dates'), '20261010T220000/20261011T010000');
 });
 
 test('pendingChanges: 아직 확인 안 한 변경을 항목별로 합침 (처음 before, 마지막 after)', () => {

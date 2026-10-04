@@ -146,37 +146,28 @@ export function seenCount(ps, version) {
   return { seen: ps.filter((p) => (p.seenVersion || 0) >= version).length, total: ps.length };
 }
 
-const icsText = (s) => String(s).replace(/\\/g, '\\\\').replace(/([,;])/g, '\\$1').replace(/\n/g, '\\n');
+// 종료 시각: 없으면 시작 + 2시간, 시작보다 이르면 자정을 넘긴 다음 날
+function eventEnd(e) {
+  if (e.endTime) return { date: e.endTime <= e.startTime ? addDays(e.date, 1) : e.date, time: e.endTime };
+  const [h, m] = e.startTime.split(':').map(Number);
+  const total = h * 60 + m + 120;
+  const time = `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  return { date: total >= 1440 ? addDays(e.date, 1) : e.date, time };
+}
 
-export function toICS(e) {
+// 구글 캘린더 "일정 추가" 화면으로 바로 연결 (카톡 안 브라우저에서도 파일 다운로드 없이 동작)
+export function googleCalendarUrl(e, link = '') {
   const stamp = (date, time) => `${date.replace(/-/g, '')}T${time.replace(':', '')}00`;
-  let endDate = e.date;
-  let endTime = e.endTime;
-  if (!endTime) {
-    const [h, m] = e.startTime.split(':').map(Number);
-    const total = h * 60 + m + 120;
-    if (total >= 1440) endDate = addDays(e.date, 1);
-    endTime = `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
-  } else if (endTime <= e.startTime) {
-    endDate = addDays(e.date, 1); // 자정을 넘기는 모임 (22:00 ~ 01:00)
-  }
-  const utcStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const location = [e.placeName, e.address].filter(Boolean).join(' ');
-  return [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//moim-allimjang//KO',
-    'BEGIN:VEVENT',
-    `UID:${e.id}@moim-allimjang`,
-    `DTSTAMP:${utcStamp}`,
-    `DTSTART:${stamp(e.date, e.startTime)}`,
-    `DTEND:${stamp(endDate, endTime)}`,
-    `SUMMARY:${icsText(e.title)}`,
-    `LOCATION:${icsText(location)}`,
-    `DESCRIPTION:${icsText([e.supplies && `준비물: ${e.supplies}`, e.notes].filter(Boolean).join('\n'))}`,
-    'END:VEVENT',
-    'END:VCALENDAR',
-  ].join('\r\n');
+  const end = eventEnd(e);
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: e.title,
+    dates: `${stamp(e.date, e.startTime)}/${stamp(end.date, end.time)}`,
+    ctz: 'Asia/Seoul',
+    location: [e.placeName, e.address].filter(Boolean).join(' '),
+    details: [e.supplies && `준비물: ${e.supplies}`, e.notes, link && `모임 알림장: ${link}`].filter(Boolean).join('\n\n'),
+  });
+  return `https://calendar.google.com/calendar/render?${params}`;
 }
 
 // 준비물: 쉼표·줄바꿈으로 나눈 항목

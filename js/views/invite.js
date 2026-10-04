@@ -3,10 +3,10 @@ import { api, getMode } from '../api.js';
 import { hostToken, addHosted, myself, setMyself, localSeen, setLocalSeen } from '../store.js';
 import {
   countRsvp, seenCount, amountFor, daysUntil, formatDate, formatTime, timeLeft, won, displayValue,
-  supplyStatus, lateList, changeSummary, josa, pendingChanges, latestChanges,
+  supplyStatus, lateList, changeSummary, josa, pendingChanges, latestChanges, googleCalendarUrl,
 } from '../calc.js';
 import {
-  esc, nl2br, icon, toast, copyText, inviteUrl, shareInvite, downloadICS, mapUrl, errorView, RSVP_LABEL,
+  esc, nl2br, icon, toast, copyText, inviteUrl, shareInvite, mapUrl, errorView, RSVP_LABEL,
 } from '../ui.js';
 import { inviteCard, ddayBadge, seenPill } from '../card.js';
 
@@ -216,7 +216,7 @@ function fullView(data, ctx) {
     <div class="invite-layout">
       <div class="invite-main card">
         ${changeBanner(e, participants, pending)}
-        ${inviteCard(e, { changed, seen, supply: supplyStatus(e, participants), actions: `<button class="btn block" data-act="ics">${icon('calendar')}캘린더에 추가</button>` })}
+        ${inviteCard(e, { changed, seen, supply: supplyStatus(e, participants), actions: `<a class="btn block" href="${esc(googleCalendarUrl(e, inviteUrl(e.id)))}" target="_blank" rel="noopener">${icon('calendar')}구글 캘린더에 추가</a>` })}
       </div>
       <aside class="invite-side">
         <section class="card side-card dday-card">
@@ -422,7 +422,6 @@ export async function render(root, { id, query, isStale }) {
     }
     if (act === 'copy-link') copyText(inviteUrl(id), '링크를 복사했어요');
     if (act === 'share') shareInvite(e);
-    if (act === 'ics') downloadICS(e);
     if (act === 'copy-address') copyText(e.address || e.placeName, '주소를 복사했어요');
     if (act === 'copy-account') copyText(e.settlement.accountNo.replace(/^\[[^\]]*\]\s*/, ''), '계좌번호를 복사했어요');
     if (act === 'paid' && me) run(() => api.self(id, auth, { paid: true }), '입금 완료로 표시했어요. 주최자 화면에도 반영돼요.');

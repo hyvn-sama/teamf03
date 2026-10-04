@@ -1,5 +1,5 @@
 // 화면 공통 조각: 이스케이프, 아이콘, 토스트, 복사·공유, 링크
-import { toICS, formatDate, timeRange } from './calc.js';
+import { formatDate, timeRange } from './calc.js';
 
 // 사용자 입력을 화면에 넣을 때는 항상 esc()를 거친다 (공유 링크로 남이 연 화면이므로)
 export function esc(v) {
@@ -92,17 +92,6 @@ export async function shareInvite(e, prefix = '') {
     }
   }
   await copyText(`${text}\n${url}`, '안내 문구와 링크를 복사했어요. 카톡에 붙여넣어 주세요.');
-}
-
-export function downloadICS(e) {
-  const blob = new Blob([toICS(e)], { type: 'text/calendar;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `${e.title.replace(/[\\/:*?"<>|]/g, '')}.ics`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 export const mapUrl = (e) => `https://map.naver.com/p/search/${encodeURIComponent(e.address || e.placeName)}`;
