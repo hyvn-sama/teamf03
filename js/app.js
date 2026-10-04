@@ -6,6 +6,7 @@ const routes = [
   { path: /^\/?$/, view: 'home', nav: 'home' },
   { path: /^\/create$/, view: 'create', nav: 'create' },
   { path: /^\/my$/, view: 'dashboard', nav: 'my' },
+  { path: /^\/sync$/, view: 'sync', nav: 'my' },
   { path: /^\/e\/([a-z0-9]+)$/, view: 'invite', nav: '' },
   { path: /^\/e\/([a-z0-9]+)\/edit$/, view: 'create', nav: 'my', edit: true },
   { path: /^\/e\/([a-z0-9]+)\/status$/, view: 'status', nav: 'my' },

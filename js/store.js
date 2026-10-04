@@ -39,6 +39,23 @@ export function myself(id) {
 }
 export const setMyself = (id, pid, token) => write(meKey(id), { pid, token });
 
+// 이 브라우저에서 응답한 모임 전체: [{ id, pid, token }] (본인 확인 토큰이 없는 예전 기록은 제외)
+export function joinedList() {
+  const list = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith('moim.me.')) continue;
+      const id = key.slice('moim.me.'.length);
+      const me = myself(id);
+      if (me && me.pid && me.token) list.push({ id, pid: me.pid, token: me.token });
+    }
+  } catch {
+    /* 저장소를 못 읽으면 빈 목록 */
+  }
+  return list;
+}
+
 // 응답 전 사람이 변경 배너를 닫은 버전
 const seenKey = (id) => `moim.seen.${id}`;
 export const localSeen = (id) => read(seenKey(id), 0);
