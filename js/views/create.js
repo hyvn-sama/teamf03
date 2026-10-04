@@ -1,7 +1,7 @@
 // 01 안내장 만들기  /  안내장 수정·재공유 (#/e/:id/edit) — 같은 폼을 쓴다
 import { api } from '../api.js';
 import { addHosted, hostToken } from '../store.js';
-import { EDIT_FIELDS, FIELD_LABELS, diffEvent, displayValue, todayStr, josa } from '../calc.js';
+import { EDIT_FIELDS, FIELD_LABELS, diffEvent, displayValue, todayStr, josa, supplyItems } from '../calc.js';
 import { esc, icon, toast, copyText, inviteUrl, shareInvite, pageHead, errorView } from '../ui.js';
 import { inviteCard } from '../card.js';
 
@@ -95,6 +95,7 @@ function previewData(data) {
 
 export async function render(root, { id, query, edit }) {
   let original = null;
+  let people = [];
   let token = null;
 
   if (edit) {
@@ -103,13 +104,15 @@ export async function render(root, { id, query, edit }) {
       root.innerHTML = errorView('이 안내장을 만든 브라우저에서만 수정할 수 있어요.', { href: `#/e/${id}`, label: '안내장 보기' });
       return;
     }
-    original = (await api.get(id)).event;
+    const loaded = await api.get(id);
+    original = loaded.event;
+    people = loaded.participants;
   }
 
   root.innerHTML = `
     ${edit
       ? pageHead({ iconName: 'edit', title: '안내장 수정 · 재공유', sub: `${esc(original.title)} · 바뀐 항목은 주황색으로 표시되고, 공유하면 참석자에게 변경 안내가 떠요.`, back: { href: '#/my', label: '내 알림장으로' } })
-      : pageHead({ num: '01', title: '안내장 만들기', sub: '필수 항목만 채워도 안내장이 완성돼요. 입력하면 오른쪽 미리보기에 바로 반영돼요.' })}
+      : pageHead({ num: '01', title: '안내장 만들기', sub: '필수 항목만 채워도 안내장이 완성돼요. 입력하면 미리보기에 바로 반영돼요.' })}
     <div class="create-layout">
       ${formHTML()}
       <aside class="create-side">
@@ -170,6 +173,16 @@ export async function render(root, { id, query, edit }) {
         <div><p class="strike">${esc(displayValue(c.field, c.before))}</p><p class="after">${esc(displayValue(c.field, c.after))}</p></div>
       </div>`).join('');
     root.querySelector('.save-share').disabled = changes.length === 0;
+
+    // 준비물 이름을 바꾸거나 지우면 그 준비물의 담당·'각자' 표시가 사라진다는 걸 미리 알림
+    const kept = new Set(supplyItems(data));
+    const lost = supplyItems(original).filter((item) => !kept.has(item)
+      && ((original.supplyEach || []).includes(item) || people.some((p) => (p.brings || []).includes(item))));
+    const warn = form.querySelector('[data-field="supplies"] .was');
+    if (lost.length) {
+      warn.hidden = false;
+      warn.insertAdjacentHTML('beforeend', `<span class="supply-lost">${icon('alert')}${esc(lost.join(', '))}의 담당·'각자' 표시가 사라져요</span>`);
+    }
   };
 
   form.addEventListener('input', (ev) => {

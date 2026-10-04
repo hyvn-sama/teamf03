@@ -49,11 +49,18 @@ async function render() {
   }
 }
 
+const isLocalHost = ['localhost', '127.0.0.1', '[::1]', ''].includes(location.hostname);
+
 function showModeBanner(mode) {
   const el = document.getElementById('mode-banner');
-  if (mode === 'local') {
-    el.hidden = false;
+  if (mode !== 'local') return;
+  el.hidden = false;
+  if (isLocalHost) {
     el.innerHTML = '<b>체험 모드</b> · 서버 저장소가 연결되지 않아 이 브라우저에만 저장돼요. 다른 기기에서는 안내장이 보이지 않아요.';
+  } else {
+    // 배포된 사이트인데 저장소가 없으면 심사·실사용에서 바로 문제가 되므로 크게 알린다
+    el.classList.add('danger');
+    el.innerHTML = '<b>서버 저장소가 연결되지 않았어요</b> · 지금 만든 안내장은 이 브라우저에만 저장돼서, 링크를 받은 다른 사람은 열 수 없어요. (관리자: Vercel Storage에서 Upstash Redis를 연결하세요)';
   }
 }
 

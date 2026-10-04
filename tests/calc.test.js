@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   daysUntil, ddayLabel, formatDate, formatTime, timeRange, countRsvp, defaultSettle,
   perPerson, amountFor, settleSummary, diffEvent, seenCount, toICS, won, supplyItems, supplyStatus, lateList,
+  pendingChanges, changeSummary, settleTargets, settleCountMismatch,
 } from '../js/calc.js';
 
 const now = new Date(2026, 9, 3, 17, 51); // 2026-10-03 17:51 (토)
@@ -109,4 +110,39 @@ test('lateList: 참석자 중 늦는다고 알린 사람', () => {
     { name: 'c', rsvp: 'no', late: { minutes: 10 } },
   ];
   assert.deepEqual(lateList(ps).map((p) => p.name), ['a']);
+});
+
+test('toICS: 자정을 넘기면 종료 날짜가 다음 날, DTSTAMP는 UTC', () => {
+  const ics = toICS({ id: 'x', title: 't', date: '2026-10-10', startTime: '22:00', endTime: '01:00', placeName: 'p' });
+  assert.match(ics, /DTEND:20261011T010000/);
+  assert.match(ics, /DTSTAMP:\d{8}T\d{6}Z/);
+});
+
+test('pendingChanges: 아직 확인 안 한 변경을 항목별로 합침 (처음 before, 마지막 after)', () => {
+  const e = {
+    changeVersion: 3,
+    changes: [
+      { version: 1, field: 'startTime', label: '시작 시간', before: '18:30', after: '19:00' },
+      { version: 2, field: 'notes', label: '유의사항', before: '', after: '2차 자율' },
+      { version: 3, field: 'startTime', label: '시작 시간', before: '19:00', after: '19:30' },
+    ],
+  };
+  assert.deepEqual(pendingChanges(e, 0).map((c) => [c.field, c.before, c.after]), [['startTime', '18:30', '19:30'], ['notes', '', '2차 자율']]);
+  assert.deepEqual(pendingChanges(e, 2).map((c) => [c.field, c.before, c.after]), [['startTime', '19:00', '19:30']]);
+  assert.deepEqual(pendingChanges(e, 3), []);
+  // 되돌려서 같아지면 빼기
+  const back = { changeVersion: 2, changes: [{ version: 1, field: 'fee', before: 1, after: 2 }, { version: 2, field: 'fee', before: 2, after: 1 }] };
+  assert.deepEqual(pendingChanges(back, 0), []);
+  assert.equal(changeSummary(e), '시간');
+});
+
+test('settleTargets / settleCountMismatch: 정산 대상 = 참석 중 정산 제외가 아닌 사람', () => {
+  const list = [
+    { id: 'a', rsvp: 'yes', settle: 'done' }, { id: 'b', rsvp: 'yes', settle: 'excluded' },
+    { id: 'c', rsvp: 'yes', settle: 'unpaid' }, { id: 'd', rsvp: 'no', settle: 'excluded' },
+  ];
+  assert.deepEqual(settleTargets(list).map((p) => p.id), ['a', 'c']);
+  assert.equal(settleCountMismatch(list, { count: 2 }), null);
+  assert.deepEqual(settleCountMismatch(list, { count: 3 }), { registered: 3, current: 2 });
+  assert.equal(settleCountMismatch(list, null), null);
 });

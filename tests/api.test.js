@@ -7,12 +7,28 @@ process.env.KV_REST_API_TOKEN = 'test-token';
 
 const strings = new Map();
 const hashes = new Map();
+let beforeEval = null; // 테스트에서 "그 사이 다른 요청이 썼다"를 흉내 내는 훅
 globalThis.fetch = async (url, { body }) => {
-  const [cmd, key, ...rest] = JSON.parse(body);
+  const parsed = JSON.parse(body);
+  if (parsed[0] === 'EVAL') {
+    if (beforeEval) { const hook = beforeEval; beforeEval = null; await hook(); }
+    const [, script, , key, ...args] = parsed;
+    let result = 0;
+    if (script.includes('HGET')) {
+      const h = hashes.get(key);
+      if (h && h.get(args[0]) === args[1]) { h.set(args[0], args[2]); result = 1; }
+    } else if (strings.get(key) === args[0]) {
+      strings.set(key, args[1]);
+      result = 1;
+    }
+    return { json: async () => ({ result }) };
+  }
+  const [cmd, key, ...rest] = parsed;
   let result = null;
+  if (cmd === 'EXPIRE') result = 1;
   if (cmd === 'GET') result = strings.get(key) ?? null;
   if (cmd === 'SET') {
-    if (rest[1] === 'NX' && strings.has(key)) result = null;
+    if (rest.includes('NX') && strings.has(key)) result = null;
     else { strings.set(key, rest[0]); result = 'OK'; }
   }
   if (cmd === 'HSET') { (hashes.get(key) || hashes.set(key, new Map()).get(key)).set(rest[0], rest[1]); result = 1; }
@@ -49,6 +65,9 @@ test('생성 → 조회 → 응답 → 수정 → 정산 → 입금 전체 흐�
   assert.equal(created.json.event.editTokenHash, undefined, '토큰 해시는 응답에 없어야 함');
 
   const r1 = await call('POST', { body: { action: 'rsvp', id, data: { name: '송다은', rsvp: 'yes' } } });
+  const ptoken = r1.json.participantToken;
+  assert.ok(ptoken, '응답하면 본인 확인용 토큰을 받음');
+  assert.equal(r1.json.participants[0].tokenHash, undefined, '토큰 해시는 공개되지 않음');
   const r2 = await call('POST', { body: { action: 'rsvp', id, data: { name: '이준호', rsvp: 'maybe' } } });
   assert.equal(r2.json.participants.length, 2);
 
@@ -63,7 +82,7 @@ test('생성 → 조회 → 응답 → 수정 → 정산 → 입금 전체 흐�
   assert.equal(settled.json.event.settlement.total, 32000);
 
   const pid = r1.json.participant.id;
-  const paid = await call('POST', { body: { action: 'self', id, pid, data: { paid: true, seen: true } } });
+  const paid = await call('POST', { body: { action: 'self', id, pid, ptoken, data: { paid: true, seen: true } } });
   assert.equal(paid.json.participant.settle, 'done');
   assert.equal(paid.json.participant.seenVersion, 1);
 
@@ -73,7 +92,7 @@ test('생성 → 조회 → 응답 → 수정 → 정산 → 입금 전체 흐�
   const each = await call('POST', { body: { action: 'each', id, token: editToken, data: { item: '개인 컵', on: true } } });
   assert.equal(each.status, 400, '준비물이 없으면 거절');
 
-  const late = await call('POST', { body: { action: 'self', id, pid, data: { late: 10 } } });
+  const late = await call('POST', { body: { action: 'self', id, pid, ptoken, data: { late: 10 } } });
   assert.equal(late.json.participant.late.minutes, 10);
 
   const got = await call('GET', { query: { id } });
@@ -86,4 +105,36 @@ test('잘못된 입력·없는 안내장', async () => {
   assert.equal((await call('GET', { query: { id: 'zzzzzzzz' } })).status, 404);
   assert.equal((await call('GET', { query: { id: '../etc' } })).status, 404);
   assert.equal((await call('POST', { body: { action: 'nope' } })).status, 400);
+});
+
+test('리뷰 01: 남의 참가자 id만으로는 본인 행세 불가', async () => {
+  const { json } = await call('POST', { body: { action: 'create', data: input } });
+  const id = json.event.id;
+  const victim = await call('POST', { body: { action: 'rsvp', id, data: { name: '강도현', rsvp: 'yes' } } });
+  const pid = victim.json.participant.id;
+  assert.equal((await call('POST', { body: { action: 'self', id, pid, data: { rsvp: 'no' } } })).status, 403);
+  assert.equal((await call('POST', { body: { action: 'self', id, pid, ptoken: 'guess', data: { paid: true } } })).status, 403);
+  const ok = await call('POST', { body: { action: 'self', id, pid, ptoken: victim.json.participantToken, data: { rsvp: 'maybe' } } });
+  assert.equal(ok.json.participant.rsvp, 'maybe');
+});
+
+test('리뷰 05: 같은 참가자를 동시에 고쳐도 두 변경이 모두 남음', async () => {
+  const { json } = await call('POST', { body: { action: 'create', data: input } });
+  const { id } = json.event;
+  const token = json.editToken;
+  await call('POST', { body: { action: 'settle', id, token, data: { total: 10000, count: 1, accountNo: 'a', accountHolder: 'b' } } });
+  const r = await call('POST', { body: { action: 'rsvp', id, data: { name: '지각생', rsvp: 'yes' } } });
+  const { id: pid } = r.json.participant;
+  // 참가자가 "늦어요"를 저장하기 직전에 주최자가 정산 완료로 바꿈
+  beforeEval = () => call('POST', { body: { action: 'host', id, token, pid, data: { settle: 'done' } } });
+  await call('POST', { body: { action: 'self', id, pid, ptoken: r.json.participantToken, data: { late: 20 } } });
+  const got = (await call('GET', { query: { id } })).json.participants[0];
+  assert.equal(got.settle, 'done');
+  assert.equal(got.late.minutes, 20);
+});
+
+test('잘못된 요청 본문은 400', async () => {
+  assert.equal((await call('POST', { body: '{깨진 json' })).status, 400);
+  assert.equal((await call('POST', { body: { action: 'create', data: null } })).status, 400);
+  assert.equal((await call('POST', { body: null })).status, 400);
 });

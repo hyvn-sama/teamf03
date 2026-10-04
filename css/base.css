@@ -193,3 +193,4 @@ body.modal-open { overflow: hidden; }
 .person-list li span:nth-child(2) { flex: 1; }
 .person-list em { font-style: normal; color: var(--brand); font-size: 12px; font-weight: 700; }
 .person-list .avatar { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: #fff; color: var(--brand); flex: none; }
+.mode-banner.danger { background: #b3321f; color: #fff; }

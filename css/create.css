@@ -41,3 +41,5 @@
 @media (max-width: 520px) {
   .two-col { grid-template-columns: 1fr; gap: 0; }
 }
+.supply-lost { display: flex; align-items: center; gap: 4px; width: 100%; color: #c4321f; font-weight: 700; }
+.field .was { flex-wrap: wrap; }

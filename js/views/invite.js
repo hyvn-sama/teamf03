@@ -1,9 +1,9 @@
 // 02 초대장 보기 (참석자 화면) + D-DAY 당일 모드
-import { api } from '../api.js';
-import { hostToken, myParticipantId, setMyParticipantId, localSeen, setLocalSeen } from '../store.js';
+import { api, getMode } from '../api.js';
+import { hostToken, addHosted, myself, setMyself, localSeen, setLocalSeen } from '../store.js';
 import {
   countRsvp, seenCount, amountFor, daysUntil, formatDate, formatTime, timeLeft, won, displayValue,
-  supplyStatus, lateList, changeSummary, josa,
+  supplyStatus, lateList, changeSummary, josa, pendingChanges, latestChanges,
 } from '../calc.js';
 import {
   esc, nl2br, icon, toast, copyText, inviteUrl, shareInvite, downloadICS, mapUrl, errorView, RSVP_LABEL,
@@ -11,6 +11,14 @@ import {
 import { inviteCard, ddayBadge, seenPill } from '../card.js';
 
 const POLL_MS = 15000;
+
+// 다른 기기에서 이어서 쓰는 링크 (토큰은 # 뒤에 있어 서버로 전송되지 않음)
+const adminUrl = (id, token) => `${inviteUrl(id)}?k=${encodeURIComponent(token)}`;
+const meUrl = (id, me) => `${inviteUrl(id)}?p=${encodeURIComponent(me.pid)}&t=${encodeURIComponent(me.token)}`;
+
+const localWarning = () => (getMode() === 'local'
+  ? `<p class="local-warn">${icon('alert')}지금은 체험 모드라 이 링크는 <b>이 브라우저에서만</b> 열려요. 다른 사람·다른 기기와 공유하려면 서버 저장소를 연결해야 해요.</p>`
+  : '');
 
 function hostBar(e, isNew) {
   return `
@@ -22,18 +30,25 @@ function hostBar(e, isNew) {
         </div>
         <div class="link-box"><span>${esc(inviteUrl(e.id))}</span><button class="btn sm dark" data-act="copy-link">링크 복사</button></div>
         <button class="btn primary" data-act="share">${icon('share')}카톡으로 공유하기</button>
+        ${localWarning()}
+        <div class="admin-box">
+          <p><b>주최자 관리 링크</b> · 휴대폰 등 다른 기기에서도 수정·정산하려면 이 링크를 나에게만 보내 두세요. 참석자에게는 공유하지 마세요.</p>
+          <button class="btn sm dark" data-act="copy-admin">관리 링크 복사</button>
+        </div>
       </div>` : ''}
     <nav class="host-bar" aria-label="주최자 메뉴">
       <span class="host-bar-label">주최자 메뉴</span>
       <button class="btn sm" data-act="share">${icon('share')}공유</button>
+      <button class="btn sm" data-act="copy-admin" title="다른 기기에서 관리할 때 쓰는 링크">${icon('copy')}관리 링크</button>
       <a class="btn sm" href="#/e/${e.id}/edit">${icon('edit')}수정·재공유</a>
       <a class="btn sm" href="#/e/${e.id}/status">${icon('users')}참석 현황</a>
       <a class="btn sm" href="#/e/${e.id}/settle">${icon('money')}정산</a>
     </nav>`;
 }
 
-function changeBanner(e, participants, unseen) {
-  if (!unseen) return '';
+// changes: 이 사람이 아직 확인하지 않은 변경 (앞선 수정분까지 합쳐서)
+function changeBanner(e, participants, changes) {
+  if (!changes.length) return '';
   const { seen, total } = seenCount(participants, e.changeVersion);
   return `
     <section class="change-banner">
@@ -43,7 +58,7 @@ function changeBanner(e, participants, unseen) {
         ${total ? seenPill({ seen, total }) : ''}
       </div>
       <div class="change-rows">
-        ${e.changes.map((c) => `
+        ${changes.map((c) => `
           <div class="change-row"><span>기존 ${esc(c.label)}</span><span class="strike">${esc(displayValue(c.field, c.before))}</span></div>
           <div class="change-row now"><span>변경된 ${esc(c.label)}</span><strong>${esc(displayValue(c.field, c.after))}</strong></div>`).join('')}
       </div>
@@ -61,7 +76,8 @@ function rsvpPanel(me) {
     <section class="card side-card rsvp-card">
       <h3>나의 참석 여부</h3>
       ${me
-        ? `<p class="hint"><b>${esc(me.name)}</b> 님은 <b>${RSVP_LABEL[me.rsvp]}</b>으로 응답했어요. 바꾸려면 다시 눌러주세요.</p>`
+        ? `<p class="hint"><b>${esc(me.name)}</b> 님은 <b>${RSVP_LABEL[me.rsvp]}</b>으로 응답했어요. 바꾸려면 다시 눌러주세요.</p>
+           <p class="hint my-link">다른 기기에서 이어서 하려면 <button class="link-btn" data-act="copy-me">내 응답 링크 복사</button></p>`
         : `<p class="hint">아직 응답하지 않았어요. 이름을 적고 선택해주세요.</p>
            <label class="sr-only" for="rsvp-name">이름</label>
            <input class="input" id="rsvp-name" maxlength="20" placeholder="이름 (예: 송다은)" autocomplete="name">`}
@@ -83,7 +99,7 @@ function attendancePanel(e, participants, isHost) {
 
 function settlePanel(e, me) {
   const s = e.settlement;
-  if (!s || !me || me.rsvp !== 'yes') return '';
+  if (!s || !me || me.rsvp !== 'yes' || me.settle === 'excluded') return '';
   const done = me.settle === 'done';
   return `
     <section class="card side-card settle-card">
@@ -185,10 +201,11 @@ function lateBoard(ps) {
 
 function fullView(data, ctx) {
   const { event: e, participants } = data;
-  const { me, isHost, unseen, isNew } = ctx;
-  const showChanges = (unseen || isHost) && e.changeVersion > 0;
-  const changed = showChanges ? Object.fromEntries(e.changes.map((c) => [c.field, c.before])) : {};
-  const seen = showChanges ? seenCount(participants, e.changeVersion) : null;
+  const { me, isHost, pending, isNew } = ctx;
+  // 카드에 표시할 변경: 아직 확인 안 한 것, 주최자는 최근 수정분
+  const marks = pending.length ? pending : isHost ? latestChanges(e) : [];
+  const changed = Object.fromEntries(marks.map((c) => [c.field, c.before]));
+  const seen = marks.length ? seenCount(participants, e.changeVersion) : null;
   const n = daysUntil(e.date);
   return `
     ${isHost ? hostBar(e, isNew) : ''}
@@ -196,7 +213,7 @@ function fullView(data, ctx) {
     <div class="page-head"><span class="step-num">02</span><div><h1>초대장 보기</h1></div></div>
     <div class="invite-layout">
       <div class="invite-main card">
-        ${changeBanner(e, participants, unseen)}
+        ${changeBanner(e, participants, pending)}
         ${inviteCard(e, { changed, seen, supply: supplyStatus(e, participants), actions: `<button class="btn block" data-act="ics">${icon('calendar')}캘린더에 추가</button>` })}
       </div>
       <aside class="invite-side">
@@ -210,7 +227,8 @@ function fullView(data, ctx) {
         ${settlePanel(e, me)}
         ${attendancePanel(e, participants, isHost)}
       </aside>
-    </div>`;
+    </div>
+    ${me ? '' : `<button class="btn primary rsvp-jump" data-act="jump-rsvp">참석 여부 응답하기</button>`}`;
 }
 
 function todayView(data, ctx) {
@@ -228,7 +246,7 @@ function todayView(data, ctx) {
         <p class="today-hint">오늘은 가는 길과 연락처를 먼저 보여드려요.</p>
       </section>
       ${ctx.isHost ? lateBoard(data.participants) : ''}
-      ${ctx.unseen ? changeBanner(e, data.participants, true) : ''}
+      ${changeBanner(e, data.participants, ctx.pending)}
       <section class="card card-pad">
         <h2 class="today-h">${icon('pin')}오시는 길</h2>
         <p class="today-place">${esc(e.placeName)}</p>
@@ -263,17 +281,28 @@ function todayView(data, ctx) {
 }
 
 export async function render(root, { id, query, isStale }) {
+  // 다른 기기에서 받은 관리 링크(?k=) / 내 응답 링크(?p=&t=)를 이 브라우저에 저장하고 주소에서 지움
+  if (query.k) addHosted(id, query.k);
+  if (query.p && query.t) setMyself(id, query.p, query.t);
+  if (query.k || query.p) {
+    history.replaceState(null, '', `#/e/${id}${query.view ? `?view=${encodeURIComponent(query.view)}` : ''}`);
+    if (query.k) toast('이 기기에서도 주최자로 관리할 수 있어요');
+    if (query.p) toast('내 응답을 이 기기에 연결했어요');
+  }
+
   let data = await api.get(id);
   const isHost = !!hostToken(id);
   const isNew = query.new === '1';
   let busy = false;
+  let gen = 0; // 내가 바꾼 횟수 — 그 사이 끝난 주기 새로고침 결과(옛 데이터)는 버린다
   let modal = null; // 'seen' | 'supply'
 
   const ctxOf = () => {
-    const me = data.participants.find((p) => p.id === myParticipantId(id)) || null;
+    const auth = myself(id);
+    // 토큰이 없는 예전 기록은 본인 확인을 못 하므로 다시 응답하게 한다
+    const me = (auth && auth.token && data.participants.find((p) => p.id === auth.pid)) || null;
     const seenVer = me ? me.seenVersion || 0 : localSeen(id);
-    const unseen = data.event.changeVersion > 0 && data.event.changes.length > 0 && seenVer < data.event.changeVersion;
-    return { me, isHost, unseen, isNew };
+    return { me, auth, isHost, pending: pendingChanges(data.event, seenVer), isNew };
   };
 
   const draw = () => {
@@ -296,6 +325,7 @@ export async function render(root, { id, query, isStale }) {
   const run = async (fn, done) => {
     if (busy) return;
     busy = true;
+    gen++;
     try {
       data = await fn();
       if (done) toast(done);
@@ -310,7 +340,7 @@ export async function render(root, { id, query, isStale }) {
   const onClick = (ev) => {
     const btn = ev.target.closest('[data-act], [data-rsvp], [data-each], [data-bring], [data-late]');
     if (!btn) return;
-    const me = ctxOf().me;
+    const { me, auth } = ctxOf();
     const e = data.event;
     const token = hostToken(id);
 
@@ -328,19 +358,20 @@ export async function render(root, { id, query, isStale }) {
       const item = btn.dataset.bring;
       const has = (me.brings || []).includes(item);
       const brings = has ? me.brings.filter((b) => b !== item) : [...(me.brings || []), item];
-      run(() => api.self(id, me.id, { brings }), has ? `${item} 담당을 취소했어요` : `${josa(item, '을', '를')} 가져가기로 했어요`);
+      run(() => api.self(id, auth, { brings }), has ? `${item} 담당을 취소했어요` : `${josa(item, '을', '를')} 가져가기로 했어요`);
       return;
     }
     if (btn.dataset.late != null) {
+      if (!me) return;
       const late = Number(btn.dataset.late);
-      run(() => api.self(id, me.id, { late }), late ? `주최자에게 ${late}분 늦는다고 알렸어요` : '늦어요 알림을 취소했어요');
+      run(() => api.self(id, auth, { late }), late ? `주최자에게 ${late}분 늦는다고 알렸어요` : '늦어요 알림을 취소했어요');
       return;
     }
 
     if (btn.dataset.rsvp) {
       const rsvp = btn.dataset.rsvp;
       if (me) {
-        if (me.rsvp !== rsvp) run(() => api.self(id, me.id, { rsvp }), `${RSVP_LABEL[rsvp]}으로 바꿨어요`);
+        if (me.rsvp !== rsvp) run(() => api.self(id, auth, { rsvp }), `${RSVP_LABEL[rsvp]}으로 바꿨어요`);
         return;
       }
       const input = root.querySelector('#rsvp-name');
@@ -353,7 +384,7 @@ export async function render(root, { id, query, isStale }) {
       }
       run(async () => {
         const res = await api.rsvp(id, { name, rsvp });
-        setMyParticipantId(id, res.participant.id);
+        setMyself(id, res.participant.id, res.participantToken);
         return res;
       }, rsvp === 'yes' ? '참석으로 응답했어요. 캘린더에도 추가해보세요!' : '응답했어요');
       return;
@@ -380,14 +411,21 @@ export async function render(root, { id, query, isStale }) {
 `);
       return;
     }
+    if (act === 'copy-admin') copyText(adminUrl(id, token), '관리 링크를 복사했어요. 참석자에게는 보내지 마세요.');
+    if (act === 'copy-me' && auth) copyText(meUrl(id, auth), '내 응답 링크를 복사했어요. 다른 기기에서 열면 이어서 쓸 수 있어요.');
+    if (act === 'jump-rsvp') {
+      const card = root.querySelector('.rsvp-card');
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => card.querySelector('input')?.focus({ preventScroll: true }), 400);
+    }
     if (act === 'copy-link') copyText(inviteUrl(id), '링크를 복사했어요');
     if (act === 'share') shareInvite(e);
     if (act === 'ics') downloadICS(e);
     if (act === 'copy-address') copyText(e.address || e.placeName, '주소를 복사했어요');
     if (act === 'copy-account') copyText(e.settlement.accountNo.replace(/^\[[^\]]*\]\s*/, ''), '계좌번호를 복사했어요');
-    if (act === 'paid' && me) run(() => api.self(id, me.id, { paid: true }), '입금 완료로 표시했어요. 주최자 화면에도 반영돼요.');
+    if (act === 'paid' && me) run(() => api.self(id, auth, { paid: true }), '입금 완료로 표시했어요. 주최자 화면에도 반영돼요.');
     if (act === 'seen') {
-      if (me) run(() => api.self(id, me.id, { seen: true }), '확인했어요');
+      if (me) run(() => api.self(id, auth, { seen: true }), '확인했어요');
       else {
         setLocalSeen(id, e.changeVersion);
         draw();
@@ -408,9 +446,12 @@ export async function render(root, { id, query, isStale }) {
   // 다른 사람의 응답·정산이 보이도록 주기적으로 새로고침 (입력 중이면 건너뜀)
   const timer = setInterval(async () => {
     if (busy || modal || isStale() || document.hidden || document.activeElement?.id === 'rsvp-name') return;
+    const startGen = gen;
     try {
-      data = await api.get(id);
-      if (!isStale()) draw();
+      const fresh = await api.get(id);
+      if (startGen !== gen || busy || isStale()) return; // 그 사이 내가 바꿨으면 옛 데이터라 버림
+      data = fresh;
+      draw();
     } catch { /* 다음 주기에 다시 */ }
   }, POLL_MS);
   return () => {

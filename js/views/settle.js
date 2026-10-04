@@ -1,7 +1,7 @@
 // 04 정산 안내 (주최자) — 총 비용 ÷ 정산 인원 자동 계산, 개인별 조정, 계좌 등록
 import { api } from '../api.js';
 import { hostToken } from '../store.js';
-import { perPerson, settleSummary, won } from '../calc.js';
+import { perPerson, settleSummary, settleTargets, won } from '../calc.js';
 import { esc, icon, toast, pageHead, errorView, inviteUrl, copyText } from '../ui.js';
 
 const num = (v) => (v === '' || v == null ? 0 : Number(v));
@@ -13,11 +13,13 @@ export async function render(root, { id }) {
     return;
   }
   let { event: e, participants: ps } = await api.get(id);
-  const attending = ps.filter((p) => p.rsvp === 'yes');
+  // 정산 인원 = 참석자 중 '정산 제외'가 아닌 사람 (참석 현황에서 지정)
+  let attending = settleTargets(ps);
   const s0 = e.settlement || {};
+  const changedSince = e.settlement && s0.count !== attending.length;
   const state = {
     total: s0.total ?? (e.fee && attending.length ? e.fee * attending.length : ''),
-    count: s0.count ?? (attending.length || ''),
+    count: attending.length,
     mode: s0.mode || 'equal',
     custom: { ...(s0.custom || {}) },
   };
@@ -27,12 +29,16 @@ export async function render(root, { id }) {
     <div class="settle-layout">
       <form class="card card-pad settle-form" novalidate>
         <div class="settle-form-head"><h2>정산 등록</h2><span class="tag opt">주최자 화면</span></div>
-        <p class="hint">총 비용과 인원을 넣으면 1인당 금액이 자동으로 계산돼요.</p>
+        <p class="hint">총 비용을 넣으면 정산 인원으로 나눠 1인당 금액이 자동으로 계산돼요.</p>
+        ${changedSince ? `<p class="local-warn">${icon('alert')}정산을 등록할 때는 ${s0.count}명이었는데 지금 정산 대상은 ${attending.length}명이에요. 확인 후 다시 보내주세요.</p>` : ''}
 
         <div class="field"><label for="s-total">총 비용<span class="tag req">필수</span></label>
           <div class="input-unit"><input class="input" id="s-total" name="total" type="number" inputmode="numeric" min="1" placeholder="224000"><span>원</span></div></div>
-        <div class="field"><label for="s-count">정산 인원<span class="tag req">필수</span></label>
-          <div class="input-unit"><input class="input" id="s-count" name="count" type="number" inputmode="numeric" min="1" placeholder="${attending.length || 1}"><span>명</span></div></div>
+        <div class="field"><label for="s-count">정산 인원<span class="tag opt">자동</span></label>
+          <div>
+            <div class="input-unit"><input class="input" id="s-count" name="count" type="number" readonly tabindex="-1"><span>명</span></div>
+            <p class="hint field-hint">참석자 중 '정산 제외'가 아닌 사람 수예요. 바꾸려면 <a href="#/e/${id}/status">참석 현황</a>에서 정산 상태를 바꿔주세요.</p>
+          </div></div>
 
         <section class="amount-box">
           <div class="amount-head">
@@ -121,13 +127,13 @@ export async function render(root, { id }) {
   const drawSent = () => {
     const msg = form.querySelector('.sent-msg');
     msg.hidden = !e.settlement;
-    if (e.settlement) msg.querySelector('span').textContent = `참석자 ${attending.length}명에게 정산 안내가 표시되고 있어요`;
+    if (e.settlement) msg.querySelector('span').textContent = `정산 대상 ${attending.length}명에게 정산 안내가 표시되고 있어요`;
   };
 
   form.addEventListener('input', (ev) => {
     const t = ev.target;
     t.classList.remove('invalid');
-    if (t.name === 'total' || t.name === 'count') {
+    if (t.name === 'total') {
       state[t.name] = t.value;
       drawAmounts();
     } else if (t.dataset.pid) {
@@ -147,8 +153,6 @@ export async function render(root, { id }) {
     const modeBtn = ev.target.closest('[data-mode]');
     if (modeBtn) {
       state.mode = modeBtn.dataset.mode;
-      if (state.mode === 'custom') state.count = attending.length || state.count;
-      form.elements.count.value = state.count;
       drawAmounts();
       drawPreview();
     }
@@ -163,7 +167,11 @@ export async function render(root, { id }) {
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if (busy) return;
-    const required = ['total', 'count', 'accountNo', 'accountHolder'];
+    if (!attending.length) {
+      errorEl.textContent = '정산 대상이 없어요. 참석 현황에서 참석자를 확인해주세요.';
+      return;
+    }
+    const required = ['total', 'accountNo', 'accountHolder'];
     const empty = required.map((n) => form.elements[n]).find((el) => !String(el.value).trim() || (el.type === 'number' && Number(el.value) <= 0));
     required.forEach((n) => form.elements[n].classList.toggle('invalid', form.elements[n] === empty));
     if (empty) {
@@ -171,10 +179,29 @@ export async function render(root, { id }) {
       empty.focus();
       return;
     }
+    if (state.mode === 'custom') {
+      const sum = attending.reduce((acc, p) => acc + num(amountOf(p.id)), 0);
+      if (sum !== num(state.total)) {
+        errorEl.textContent = `개인별 금액의 합계(${won(sum)})가 총 비용(${won(num(state.total))})과 같아야 해요.`;
+        return;
+      }
+    }
     errorEl.textContent = '';
     busy = true;
     form.querySelector('.submit').disabled = true;
     try {
+      // 화면을 연 뒤 정산 대상이 바뀌었는지 마지막으로 확인
+      const fresh = (await api.get(id)).participants;
+      const latest = settleTargets(fresh);
+      if (latest.length !== attending.length) {
+        ps = fresh;
+        attending = latest;
+        state.count = attending.length;
+        form.elements.count.value = state.count;
+        drawAmounts();
+        drawPreview();
+        throw new Error(`그 사이 정산 대상이 ${attending.length}명으로 바뀌었어요. 금액을 확인하고 다시 보내주세요.`);
+      }
       const custom = {};
       if (state.mode === 'custom') attending.forEach((p) => { custom[p.id] = num(amountOf(p.id)); });
       const res = await api.settle(id, token, {
@@ -189,7 +216,7 @@ export async function render(root, { id }) {
       drawSent();
       drawPreview();
       const amount = e.settlement.mode === 'custom' ? '개인별 금액은 링크에서 확인해주세요' : `1인 ${won(perPerson(e.settlement.total, e.settlement.count))}`;
-      const text = `[정산 안내] ${e.title}\n${amount} ·${e.settlement.accountNo} (${e.settlement.accountHolder})\n입금 후 링크에서 '입금했어요'를 눌러주세요.`;
+      const text = `[정산 안내] ${e.title}\n${amount} · ${e.settlement.accountNo} (${e.settlement.accountHolder})\n입금 후 링크에서 '입금했어요'를 눌러주세요.`;
       if (navigator.share) {
         navigator.share({ title: e.title, text, url: inviteUrl(id) }).catch(() => {});
       } else {

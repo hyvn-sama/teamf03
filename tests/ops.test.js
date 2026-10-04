@@ -81,22 +81,22 @@ test('selfUpdate: 정산 등록 전이거나 참석이 아니면 입금 불가',
 });
 
 test('hostUpdate: 주최자가 참석·정산 상태 변경', () => {
-  const e = createEvent(base, now);
+  const e = { ...createEvent(base, now), settlement: { total: 1, count: 1 } };
   let p = newParticipant({ name: 'a', rsvp: 'yes' }, e, now);
-  p = hostUpdate(p, { settle: 'done' });
+  p = hostUpdate(p, { settle: 'done' }, e, now);
   assert.equal(p.settle, 'done');
-  p = hostUpdate(p, { rsvp: 'no' });
+  p = hostUpdate(p, { rsvp: 'no' }, e, now);
   assert.equal(p.settle, 'excluded');
-  assert.throws(() => hostUpdate(p, { settle: 'done' }), InputError); // 불참자는 정산 대상 아님
+  assert.throws(() => hostUpdate(p, { settle: 'done' }, e, now), InputError); // 불참자는 정산 대상 아님
 });
 
 test('cleanSettlement: 필수값, 개인별 금액은 참석자만', () => {
   const ps = [{ id: 'p1', rsvp: 'yes' }, { id: 'p2', rsvp: 'no' }];
   const s = cleanSettlement({
-    total: '224000', count: '14', mode: 'custom', custom: { p1: '20000', p2: '5', zz: '1' },
+    total: '20000', count: '1', mode: 'custom', custom: { p1: '20000', p2: '5', zz: '1' },
     accountNo: '[국민] 000', accountHolder: '김민지',
   }, ps, now);
-  assert.equal(s.total, 224000);
+  assert.equal(s.total, 20000);
   assert.deepEqual(s.custom, { p1: 20000 });
   assert.throws(() => cleanSettlement({ total: '0', count: '1', accountNo: 'a', accountHolder: 'b' }, ps, now), InputError);
   assert.throws(() => cleanSettlement({ total: '10', count: '1', accountNo: '', accountHolder: 'b' }, ps, now), InputError);
@@ -126,4 +126,49 @@ test('setSupplyEach: 각자 챙기는 준비물 켜고 끄기', () => {
   next = setSupplyEach(next, { item: '개인 컵', on: false }, now);
   assert.deepEqual(next.supplyEach, []);
   assert.throws(() => setSupplyEach(e, { item: '없는 물건', on: true }, now), InputError);
+});
+
+test('리뷰 02: 변경 이력이 누적되고 version이 붙음', () => {
+  const e = createEvent(base, now);
+  const v1 = editEvent(e, { ...e, startTime: '19:00' }, now).event;
+  const v2 = editEvent(v1, { ...v1, notes: '2차 자율' }, now).event;
+  assert.equal(v2.changeVersion, 2);
+  assert.deepEqual(v2.changes.map((c) => [c.version, c.field]), [[1, 'startTime'], [2, 'notes']]);
+});
+
+test('리뷰 04: 입금 후 응답을 바꿨다 다시 참석하면 정산 완료 복원', () => {
+  const e = { ...createEvent(base, now), settlement: { total: 1, count: 1 } };
+  let p = newParticipant({ name: 'a', rsvp: 'yes' }, e, now);
+  p = selfUpdate(p, { paid: true }, e, now);
+  p = selfUpdate(p, { rsvp: 'maybe' }, e, now);
+  assert.equal(p.settle, 'excluded');
+  p = selfUpdate(p, { rsvp: 'yes' }, e, now);
+  assert.equal(p.settle, 'done');
+  // 주최자가 미정산으로 되돌리면 입금 기록도 지움
+  p = hostUpdate(p, { settle: 'unpaid' }, e, now);
+  assert.equal(p.paidAt, null);
+});
+
+test('리뷰 03: 주최자가 참석자를 정산 제외로, 정산 등록 전에는 정산 완료 불가', () => {
+  const e = createEvent(base, now);
+  const p = newParticipant({ name: 'a', rsvp: 'yes' }, e, now);
+  assert.equal(hostUpdate(p, { settle: 'excluded' }, e, now).settle, 'excluded');
+  assert.throws(() => hostUpdate(p, { settle: 'done' }, e, now), InputError);
+  const settled = { ...e, settlement: { total: 1, count: 1 } };
+  const done = hostUpdate(p, { settle: 'done' }, settled, now);
+  assert.equal(done.settle, 'done');
+  assert.ok(done.paidAt);
+});
+
+test('리뷰 03: 개인별 금액은 정산 대상자만, 합계가 총 비용과 달라야 하면 거절', () => {
+  const ps = [{ id: 'p1', rsvp: 'yes', settle: 'unpaid' }, { id: 'p2', rsvp: 'yes', settle: 'excluded' }];
+  const ok = { total: '20000', count: '1', mode: 'custom', custom: { p1: '20000', p2: '5' }, accountNo: 'a', accountHolder: 'b' };
+  assert.deepEqual(cleanSettlement(ok, ps, now).custom, { p1: 20000 });
+  assert.throws(() => cleanSettlement({ ...ok, custom: { p1: '19000' } }, ps, now), InputError);
+});
+
+test('서버 검증: 없는 날짜·시간 거절', () => {
+  assert.throws(() => createEvent({ ...base, date: '2026-02-31' }, now), InputError);
+  assert.throws(() => createEvent({ ...base, startTime: '99:99' }, now), InputError);
+  assert.throws(() => createEvent({ ...base, endTime: '24:00' }, now), InputError);
 });

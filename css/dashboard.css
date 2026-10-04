@@ -40,3 +40,5 @@
   .dash-head h1 { font-size: 26px; }
   .today-card { padding: 20px; }
 }
+.sample-more { text-align: center; margin-top: 32px; }
+.sample-more .link-btn { color: var(--muted); text-decoration: underline; }

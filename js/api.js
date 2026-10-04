@@ -60,11 +60,13 @@ function writeDb(db) {
 
 function localBundle(db, id) {
   const { editTokenHash, ...event } = db.events[id];
-  const participants = Object.values(db.people[id] || {}).sort((a, b) => a.respondedAt.localeCompare(b.respondedAt));
+  const participants = Object.values(db.people[id] || {})
+    .sort((a, b) => a.respondedAt.localeCompare(b.respondedAt))
+    .map(({ tokenHash, ...p }) => p);
   return { event, participants };
 }
 
-function localCall(action, { id, token, pid, data = {} }) {
+function localCall(action, { id, token, pid, ptoken, data = {} }) {
   const db = readDb();
   const now = new Date();
   const need = () => {
@@ -79,6 +81,11 @@ function localCall(action, { id, token, pid, data = {} }) {
   const needPerson = () => {
     const p = db.people[id] && db.people[id][pid];
     if (!p) throw new ApiError('참가자 정보를 찾을 수 없어요.');
+    return p;
+  };
+  const needSelf = () => {
+    const p = needPerson();
+    if (!ptoken || p.tokenHash !== ptoken) throw new ApiError('본인만 바꿀 수 있어요.');
     return p;
   };
 
@@ -101,17 +108,19 @@ function localCall(action, { id, token, pid, data = {} }) {
       db.events[id] = { ...e, settlement: cleanSettlement(data, Object.values(db.people[id] || {}), now) };
     } else if (action === 'host') {
       needHost();
-      db.people[id][pid] = hostUpdate(needPerson(), data);
+      db.people[id][pid] = hostUpdate(needPerson(), data, needHost(), now);
     } else if (action === 'each') {
       db.events[id] = setSupplyEach(needHost(), data, now);
     } else if (action === 'rsvp') {
+      const participantToken = newId(24);
       const p = newParticipant(data, need(), now);
-      db.people[id] = { ...(db.people[id] || {}), [p.id]: p };
-      extra = { participant: p };
+      db.people[id] = { ...(db.people[id] || {}), [p.id]: { ...p, tokenHash: participantToken } };
+      extra = { participant: p, participantToken };
     } else if (action === 'self') {
-      const p = selfUpdate(needPerson(), data, need(), now);
+      const p = selfUpdate(needSelf(), data, need(), now);
       db.people[id][pid] = p;
-      extra = { participant: p };
+      const { tokenHash, ...pub } = p;
+      extra = { participant: pub };
     }
     writeDb(db);
     return { ...localBundle(db, id), ...extra };
@@ -134,5 +143,5 @@ export const api = {
   host: (id, token, pid, data) => call('host', { id, token, pid, data }),
   each: (id, token, data) => call('each', { id, token, data }),
   rsvp: (id, data) => call('rsvp', { id, data }),
-  self: (id, pid, data) => call('self', { id, pid, data }),
+  self: (id, me, data) => call('self', { id, pid: me.pid, ptoken: me.token, data }),
 };

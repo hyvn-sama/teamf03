@@ -157,7 +157,10 @@ export function toICS(e) {
     const total = h * 60 + m + 120;
     if (total >= 1440) endDate = addDays(e.date, 1);
     endTime = `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  } else if (endTime <= e.startTime) {
+    endDate = addDays(e.date, 1); // 자정을 넘기는 모임 (22:00 ~ 01:00)
   }
+  const utcStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
   const location = [e.placeName, e.address].filter(Boolean).join(' ');
   return [
     'BEGIN:VCALENDAR',
@@ -165,7 +168,7 @@ export function toICS(e) {
     'PRODID:-//moim-allimjang//KO',
     'BEGIN:VEVENT',
     `UID:${e.id}@moim-allimjang`,
-    `DTSTAMP:${stamp(todayStr(), '00:00')}`,
+    `DTSTAMP:${utcStamp}`,
     `DTSTART:${stamp(e.date, e.startTime)}`,
     `DTEND:${stamp(endDate, endTime)}`,
     `SUMMARY:${icsText(e.title)}`,
@@ -201,7 +204,31 @@ const CHANGE_GROUP = {
   hostName: '연락처', hostPhone: '연락처',
 };
 
+// sinceVersion 이후의 변경을 항목별로 합침: 처음 before, 마지막 after (되돌려서 같아지면 제외)
+export function pendingChanges(e, sinceVersion = 0) {
+  const byField = new Map();
+  for (const c of e.changes || []) {
+    if ((c.version ?? e.changeVersion) <= sinceVersion) continue;
+    const prev = byField.get(c.field);
+    byField.set(c.field, prev ? { ...prev, after: c.after, at: c.at } : { ...c });
+  }
+  return [...byField.values()].filter((c) => norm(c.before) !== norm(c.after));
+}
+
+// 가장 최근 수정에서 바뀐 항목
+export const latestChanges = (e) => pendingChanges(e, (e.changeVersion || 0) - 1);
+
 // 최근 변경 요약: "장소" / "시간·장소"
 export function changeSummary(e) {
-  return [...new Set((e.changes || []).map((c) => CHANGE_GROUP[c.field] || c.label))].join('·');
+  return [...new Set(latestChanges(e).map((c) => CHANGE_GROUP[c.field] || c.label))].join('·');
+}
+
+// 정산 대상 = 참석자 중 '정산 제외'가 아닌 사람
+export const settleTargets = (ps) => ps.filter((p) => p.rsvp === 'yes' && p.settle !== 'excluded');
+
+// 정산 등록 때 인원과 지금 정산 대상 수가 다르면 알려줌
+export function settleCountMismatch(ps, settlement) {
+  if (!settlement) return null;
+  const current = settleTargets(ps).length;
+  return current === settlement.count ? null : { registered: settlement.count, current };
 }

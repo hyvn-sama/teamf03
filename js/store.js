@@ -31,8 +31,13 @@ export function removeHosted(id) {
 
 export const hostToken = (id) => (hostedList().find((h) => h.id === id) || {}).token || null;
 
-export const myParticipantId = (id) => read(meKey(id), null);
-export const setMyParticipantId = (id, pid) => write(meKey(id), pid);
+// 이 안내장에서의 "나": { pid, token } — token은 응답할 때 받은 본인 확인용 비밀값
+export function myself(id) {
+  const v = read(meKey(id), null);
+  if (!v) return null;
+  return typeof v === 'string' ? { pid: v, token: null } : v; // 예전 형식(아이디만)
+}
+export const setMyself = (id, pid, token) => write(meKey(id), { pid, token });
 
 // 응답 전 사람이 변경 배너를 닫은 버전
 const seenKey = (id) => `moim.seen.${id}`;

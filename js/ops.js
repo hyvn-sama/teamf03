@@ -1,5 +1,5 @@
 // 데이터 처리 — 입력 검증과 상태 변경 규칙. 브라우저(로컬 모드)와 서버(api/)가 같이 쓴다.
-import { EDIT_FIELDS, FIELD_LABELS, defaultSettle, diffEvent, josa, supplyItems } from './calc.js';
+import { EDIT_FIELDS, FIELD_LABELS, defaultSettle, diffEvent, josa, supplyItems, settleTargets } from './calc.js';
 
 export class InputError extends Error {
   constructor(message) {
@@ -58,11 +58,22 @@ function cleanEventInput(raw) {
     hostName: text(raw.hostName, 'hostName'),
     hostPhone: text(raw.hostPhone, 'hostPhone'),
   };
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(e.date)) throw new InputError('날짜를 선택해주세요.');
-  if (!/^\d{2}:\d{2}$/.test(e.startTime)) throw new InputError('시작 시간을 선택해주세요.');
-  if (e.endTime && !/^\d{2}:\d{2}$/.test(e.endTime)) throw new InputError('종료 시간이 올바르지 않아요.');
+  if (!isRealDate(e.date)) throw new InputError('날짜를 선택해주세요.');
+  if (!isTime(e.startTime)) throw new InputError('시작 시간을 선택해주세요.');
+  if (e.endTime && !isTime(e.endTime)) throw new InputError('종료 시간이 올바르지 않아요.');
+  // 종료가 시작보다 이르면 자정을 넘기는 모임으로 본다 (22:00 ~ 01:00)
   return e;
 }
+
+function isRealDate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return d.getFullYear() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3]);
+}
+
+const isTime = (s) => /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
+const MAX_HISTORY = 50;
 
 export function createEvent(raw, now = new Date()) {
   const at = now.toISOString();
@@ -81,12 +92,14 @@ export function createEvent(raw, now = new Date()) {
 // 수정: 바뀐 항목이 있으면 이력에 남기고 changeVersion +1 (참석자에게 변경 배너)
 export function editEvent(event, raw, now = new Date()) {
   const next = cleanEventInput(raw);
-  const changes = diffEvent(event, next).map((c) => ({ ...c, at: now.toISOString() }));
+  const version = (event.changeVersion || 0) + 1;
+  const changes = diffEvent(event, next).map((c) => ({ ...c, version, at: now.toISOString() }));
   if (!changes.length) return { event, changes };
   const updated = { ...event };
   for (const f of EDIT_FIELDS) updated[f] = next[f];
-  updated.changeVersion = (event.changeVersion || 0) + 1;
-  updated.changes = changes;
+  updated.changeVersion = version;
+  // 이력을 쌓아 둬야 앞선 변경을 아직 못 본 참석자에게도 보여줄 수 있다
+  updated.changes = [...(event.changes || []), ...changes].slice(-MAX_HISTORY);
   updated.updatedAt = now.toISOString();
   return { event: updated, changes };
 }
@@ -102,10 +115,12 @@ export function cleanSettlement(raw, participants, now = new Date()) {
     sentAt: now.toISOString(),
   };
   if (s.mode === 'custom') {
-    const attending = new Set(participants.filter((p) => p.rsvp === 'yes').map((p) => p.id));
+    const targets = new Set(settleTargets(participants).map((p) => p.id));
     for (const [pid, v] of Object.entries(raw.custom || {})) {
-      if (attending.has(pid)) s.custom[pid] = int(v, '개인별 금액', { required: true });
+      if (targets.has(pid)) s.custom[pid] = int(v, '개인별 금액', { required: true });
     }
+    const sum = Object.values(s.custom).reduce((a, b) => a + b, 0);
+    if (sum !== s.total) throw new InputError('개인별 금액의 합계가 총 비용과 같아야 해요.');
   }
   return s;
 }
@@ -129,8 +144,8 @@ export function newParticipant(raw, event, now = new Date()) {
 function withRsvp(p, rsvp) {
   if (!RSVP.includes(rsvp)) throw new InputError('참석 여부가 올바르지 않아요.');
   if (rsvp === p.rsvp) return p;
-  // 참석으로 바꿀 때 이미 정산 완료였으면 유지, 그 외에는 규칙대로
-  const settle = rsvp === 'yes' && p.settle === 'done' ? 'done' : defaultSettle(rsvp);
+  // 이미 입금한 사람이 다시 참석으로 바꾸면 정산 완료를 되살린다
+  const settle = rsvp === 'yes' && p.paidAt ? 'done' : defaultSettle(rsvp);
   return { ...p, rsvp, settle };
 }
 
@@ -170,13 +185,16 @@ export function setSupplyEach(event, raw, now = new Date()) {
 }
 
 // 주최자: 참석·정산 상태 직접 변경
-export function hostUpdate(p, raw) {
+export function hostUpdate(p, raw, event, now = new Date()) {
   let next = { ...p };
   if (raw.rsvp != null) next = withRsvp(next, raw.rsvp);
-  if (raw.settle != null) {
+  if (raw.settle != null && raw.settle !== next.settle) {
     if (!SETTLE.includes(raw.settle)) throw new InputError('정산 상태가 올바르지 않아요.');
     if (raw.settle !== 'excluded' && next.rsvp !== 'yes') throw new InputError('참석자만 정산 대상이에요.');
+    if (raw.settle === 'done' && !event.settlement) throw new InputError('정산을 먼저 등록해주세요.');
     next.settle = raw.settle;
+    if (raw.settle === 'done') next.paidAt = next.paidAt || now.toISOString();
+    if (raw.settle === 'unpaid') next.paidAt = null;
   }
   return next;
 }

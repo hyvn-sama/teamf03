@@ -24,7 +24,10 @@ const people = (yes, maybe = 0, no = 0, unpaid = 0, offset = 0) => {
 
 function samples() {
   const t = todayStr();
-  const soon = `${String(Math.min(23, new Date().getHours() + 2)).padStart(2, '0')}:00`;
+  // 오늘 모임은 지금부터 약 1~2시간 뒤 (자정을 넘기면 23:59)
+  const now = new Date();
+  const h = now.getHours() + 2;
+  const soon = h > 23 ? '23:59' : `${String(h).padStart(2, '0')}:00`;
   return [
     {
       data: { title: '스터디 정기모임 4회차', date: t, startTime: soon, endTime: '', placeName: '강남역 스터디카페 2층', address: '서울시 강남구 강남대로 [상세 주소]', expectedCount: 8, fee: '', supplies: '노트북, 4장 과제 출력본', notes: '입장할 때 QR 체크인이 필요해요.\n늦으면 단톡방에 미리 알려주세요.', ...HOST },
@@ -67,14 +70,14 @@ async function seedOne(api, s) {
   const { event, editToken } = await api.create(s.data);
   const id = event.id;
   const created = await Promise.all(s.people.map(([name, rsvp]) => api.rsvp(id, { name, rsvp })));
-  const ps = created.map((r) => r.participant);
+  const ps = created.map((r) => ({ ...r.participant, me: { pid: r.participant.id, token: r.participantToken } }));
 
   if (s.edit) await api.edit(id, editToken, { ...event, ...s.edit });
-  if (s.seen) await Promise.all(ps.slice(0, s.seen).map((p) => api.self(id, p.id, { seen: true })));
+  if (s.seen) await Promise.all(ps.slice(0, s.seen).map((p) => api.self(id, p.me, { seen: true })));
   if (s.settlement) await api.settle(id, editToken, s.settlement);
   for (const item of s.each || []) await api.each(id, editToken, { item, on: true });
-  await Promise.all(ps.map((p) => (s.brings && s.brings[p.name] ? api.self(id, p.id, { brings: s.brings[p.name] }) : null)));
-  await Promise.all(Object.entries(s.late || {}).map(([i, late]) => api.self(id, ps[i].id, { late })));
+  await Promise.all(ps.map((p) => (s.brings && s.brings[p.name] ? api.self(id, p.me, { brings: s.brings[p.name] }) : null)));
+  await Promise.all(Object.entries(s.late || {}).map(([i, late]) => api.self(id, ps[i].me, { late })));
   await Promise.all(ps.map((p, i) => (s.people[i][2] ? api.host(id, editToken, p.id, { settle: 'done' }) : null)));
   return { id, token: editToken };
 }

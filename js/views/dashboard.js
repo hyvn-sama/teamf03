@@ -21,7 +21,7 @@ function progress(e, ps) {
   const c = countRsvp(ps);
   const goal = e.expectedCount || c.total || 1;
   return `
-    <div class="progress-label"><span>참석 응답</span><b>${c.yes} / ${e.expectedCount || c.total}명</b></div>
+    <div class="progress-label"><span>참석 ${c.yes}명${e.expectedCount ? ` · 예상 ${e.expectedCount}명` : ` · 응답 ${c.total}명`}</span><b>${Math.round(Math.min(100, (c.yes / goal) * 100))}%</b></div>
     <div class="bar"><i class="yes" style="width:${Math.min(100, (c.yes / goal) * 100)}%"></i></div>`;
 }
 
@@ -77,7 +77,7 @@ function pastCard({ event: e, participants: ps }) {
       <p class="ev-meta">${icon('calendar')}${esc(formatDate(e.date))} ${esc(formatTime(e.startTime))}</p>
       <p class="ev-meta">${icon('pin')}${esc(e.placeName)}</p>
       <div class="progress-label"><span>최종 참석 ${c.yes}명</span><b><a href="#/e/${e.id}/status">${settleText}</a></b></div>
-      <a class="btn sm block ghost" href="#/create?from=${e.id}">다시 열기 · 복제</a>
+      <a class="btn sm block ghost" href="#/create?from=${e.id}">복제해서 새로 만들기</a>
     </article>`;
 }
 
@@ -112,7 +112,8 @@ export async function render(root, { isStale }) {
       </div>` : ''}
     ${today.map(todayCard).join('')}
     ${upcoming.length ? `<h2 class="section-title">다가오는 모임</h2><div class="ev-grid">${upcoming.map((x) => upcomingCard(x, tagOf(x))).join('')}</div>` : ''}
-    ${past.length ? `<h2 class="section-title muted">최근 종료된 모임</h2><div class="ev-grid">${past.map(pastCard).join('')}</div>` : ''}`;
+    ${past.length ? `<h2 class="section-title muted">최근 종료된 모임</h2><div class="ev-grid">${past.map(pastCard).join('')}</div>` : ''}
+    ${items.length ? '<p class="sample-more"><button class="link-btn" data-act="sample">샘플 모임 불러오기 (시연용)</button></p>' : ''}`;
 
   const sampleBtn = root.querySelector('[data-act="sample"]');
   if (sampleBtn) {
