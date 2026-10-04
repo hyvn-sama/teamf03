@@ -227,6 +227,22 @@ export function dataStamp(event, ps) {
 // 정산 대상 = 참석자 중 '정산 제외'가 아닌 사람
 export const settleTargets = (ps) => ps.filter((p) => p.rsvp === 'yes' && p.settle !== 'excluded');
 
+// 미입금자에게 다시 알리기 — 단톡방에 보낼 문구 (정산 등록 전이거나 미입금자가 없으면 null)
+export function settleReminder(e, ps) {
+  const s = e.settlement;
+  if (!s) return null;
+  const unpaid = settleTargets(ps).filter((p) => p.settle === 'unpaid');
+  if (!unpaid.length) return null;
+  const custom = s.mode === 'custom';
+  return [
+    `[정산 다시 알림] ${e.title}`,
+    `${unpaid.map((p) => p.name).join(', ')}님, 아직 입금 확인이 안 됐어요.`,
+    ...(custom ? unpaid.map((p) => `· ${p.name} ${won(amountFor(s, p.id))}`) : [`1인 ${won(perPerson(s.total, s.count))}`]),
+    `${s.accountNo} (${s.accountHolder})`,
+    "입금 후 링크에서 '입금했어요'를 눌러주세요!",
+  ].join('\n');
+}
+
 // 정산 등록 때 인원과 지금 정산 대상 수가 다르면 알려줌
 export function settleCountMismatch(ps, settlement) {
   if (!settlement) return null;

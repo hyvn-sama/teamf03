@@ -1,8 +1,8 @@
 // 03 참석 현황 (주최자) — 응답 자동 집계, 참석·정산 상태 변경
 import { api } from '../api.js';
 import { hostAccess, noHostView } from '../access.js';
-import { countRsvp, settleSummary, settleCountMismatch, won } from '../calc.js';
-import { esc, icon, toast, pageHead, RSVP_LABEL, SETTLE_LABEL, SETTLE_ICON } from '../ui.js';
+import { countRsvp, settleSummary, settleCountMismatch, settleReminder, won } from '../calc.js';
+import { esc, icon, toast, copyText, inviteUrl, pageHead, RSVP_LABEL, SETTLE_LABEL, SETTLE_ICON } from '../ui.js';
 
 const POLL_MS = 15000;
 
@@ -76,6 +76,11 @@ export async function render(root, { id, isStale }) {
         <span class="due">미정산 <b>${s.unpaid}명</b>${e.settlement && s.remaining ? ` · ${won(s.remaining)} 남음` : ''}</span>
         <span class="hint">주최자 본인처럼 돈을 내지 않는 참석자는 '정산 제외'로 바꿔주세요</span>
       </p>
+      ${settleReminder(e, ps) ? `
+        <div class="remind-box">
+          <p>입금하지 않은 <b>${s.unpaid}명</b>에게 단톡방으로 다시 알려보세요. 이름·금액·계좌가 담긴 문구를 만들어 드려요.</p>
+          <button class="btn sm primary" data-act="remind">${icon('share')}미입금자에게 다시 알리기</button>
+        </div>` : ''}
       ${mismatch ? `
         <div class="notice mismatch">
           <p class="notice-title">${icon('alert')}정산 인원이 바뀌었어요</p>
@@ -120,6 +125,24 @@ export async function render(root, { id, isStale }) {
     if (t.matches('[data-settle]')) update(p.id, { settle: t.value }, `${p.name} 님을 ${SETTLE_LABEL[t.value]}로 표시했어요`);
   };
   root.addEventListener('change', onChange);
+
+  // 휴대폰은 공유 시트(카카오톡 선택), PC는 문구+링크 복사
+  const onClick = async (ev) => {
+    if (!ev.target.closest('[data-act="remind"]')) return;
+    const text = settleReminder(data.event, data.participants);
+    if (!text) return;
+    const url = inviteUrl(id);
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: data.event.title, text, url });
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+      }
+    }
+    copyText(`${text}\n${url}`, '다시 알림 문구를 복사했어요. 단톡방에 붙여넣어 주세요.');
+  };
+  root.addEventListener('click', onClick);
   draw();
 
   const timer = setInterval(async () => {
@@ -136,5 +159,6 @@ export async function render(root, { id, isStale }) {
   return () => {
     clearInterval(timer);
     root.removeEventListener('change', onChange);
+    root.removeEventListener('click', onClick);
   };
 }

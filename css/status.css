@@ -54,4 +54,8 @@
 .settle-select.done { background-color: var(--green-soft); color: var(--green); }
 .settle-select.excluded { background-color: var(--gray-soft); color: var(--muted); }
 .settle-select option { background: #fff; color: var(--ink); }
+.remind-box { display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin-bottom: 14px; border-radius: 12px; background: var(--brand-soft); font-size: 14px; color: var(--ink-2); }
+.remind-box p { flex: 1; }
+.remind-box b { color: var(--brand); }
+@media (max-width: 520px) { .remind-box { flex-direction: column; align-items: stretch; } }
 .notice.mismatch { margin-bottom: 14px; display: grid; gap: 8px; justify-items: start; font-size: 14px; }

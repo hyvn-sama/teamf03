@@ -3,8 +3,31 @@ import assert from 'node:assert/strict';
 import {
   daysUntil, ddayLabel, formatDate, formatTime, timeRange, countRsvp, defaultSettle,
   perPerson, amountFor, settleSummary, diffEvent, seenCount, googleCalendarUrl, won, supplyItems, supplyStatus, lateList,
-  pendingChanges, changeSummary, settleTargets, settleCountMismatch,
+  pendingChanges, changeSummary, settleTargets, settleCountMismatch, settleReminder,
 } from '../js/calc.js';
+
+test('settleReminder: 미입금 참석자 이름·금액·계좌로 다시 알림 문구', () => {
+  const ps = [
+    { id: 'a', name: '김하나', rsvp: 'yes', settle: 'unpaid' },
+    { id: 'b', name: '이둘', rsvp: 'yes', settle: 'done' },
+    { id: 'c', name: '박셋', rsvp: 'yes', settle: 'unpaid' },
+    { id: 'd', name: '최넷', rsvp: 'yes', settle: 'excluded' },
+    { id: 'e', name: '정다섯', rsvp: 'no', settle: 'excluded' },
+  ];
+  const e = { title: '가을 모임', settlement: { total: 30000, count: 3, mode: 'equal', accountNo: '국민 123', accountHolder: '홍길동' } };
+  const text = settleReminder(e, ps);
+  assert.match(text, /^\[정산 다시 알림\] 가을 모임/);
+  assert.match(text, /김하나, 박셋님/);
+  assert.doesNotMatch(text, /이둘|최넷|정다섯/);
+  assert.match(text, /1인 10,000원/);
+  assert.match(text, /국민 123 \(홍길동\)/);
+
+  const custom = settleReminder({ ...e, settlement: { ...e.settlement, mode: 'custom', custom: { a: 12000, c: 8000 } } }, ps);
+  assert.match(custom, /· 김하나 12,000원\n· 박셋 8,000원/);
+
+  assert.equal(settleReminder({ title: 'x' }, ps), null); // 정산 등록 전
+  assert.equal(settleReminder(e, ps.map((p) => ({ ...p, settle: p.settle === 'unpaid' ? 'done' : p.settle }))), null); // 모두 입금
+});
 
 const now = new Date(2026, 9, 3, 17, 51); // 2026-10-03 17:51 (토)
 
