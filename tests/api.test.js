@@ -34,6 +34,8 @@ globalThis.fetch = async (url, { body }) => {
   if (cmd === 'HSET') { (hashes.get(key) || hashes.set(key, new Map()).get(key)).set(rest[0], rest[1]); result = 1; }
   if (cmd === 'HGET') result = hashes.get(key)?.get(rest[0]) ?? null;
   if (cmd === 'HGETALL') result = [...(hashes.get(key) || new Map())].flat();
+  if (cmd === 'DEL') { result = strings.delete(key) ? 1 : 0; hashes.delete(key); }
+  if (cmd === 'INCR') { const n = Number(strings.get(key) || 0) + 1; strings.set(key, String(n)); result = n; }
   return { json: async () => ({ result }) };
 };
 
@@ -157,4 +159,30 @@ test('응답마다 stamp(마지막 변경 시각)가 붙어 옛 캐시를 구분
   await new Promise((r) => setTimeout(r, 5));
   const r = await call('POST', { body: { action: 'rsvp', id, data: { name: 'a', rsvp: 'yes' } } });
   assert.ok(r.json.stamp > s1);
+});
+
+let phoneSeq = 10000000;
+async function signup(name = '김민지') {
+  const phone = `010${phoneSeq++}`;
+  const r = await call('POST', { body: { action: 'signup', phone, name, password: 'pw1234' } });
+  return { phone, session: r.json.session, user: r.json.user, status: r.status };
+}
+
+test('가입 → 로그인 → whoami → 로그아웃', async () => {
+  const a = await signup();
+  assert.equal(a.status, 200);
+  assert.equal(a.user.name, '김민지');
+  assert.equal((await call('POST', { body: { action: 'signup', phone: a.phone, name: 'x', password: 'pw1234' } })).status, 409);
+  const login = await call('POST', { body: { action: 'login', phone: a.phone.replace(/(\d{3})(\d{4})/, '$1-$2-'), password: 'pw1234' } });
+  assert.equal(login.status, 200);
+  assert.equal((await call('POST', { body: { action: 'whoami', session: login.json.session } })).json.user.phone, a.phone);
+  await call('POST', { body: { action: 'logout', session: login.json.session } });
+  assert.equal((await call('POST', { body: { action: 'whoami', session: login.json.session } })).status, 401);
+  assert.equal(JSON.stringify(login.json).includes('pw1234'), false);
+});
+
+test('비밀번호 10번 틀리면 15분 차단', async () => {
+  const a = await signup();
+  for (let i = 0; i < 10; i++) assert.equal((await call('POST', { body: { action: 'login', phone: a.phone, password: 'wrong' } })).status, 401);
+  assert.equal((await call('POST', { body: { action: 'login', phone: a.phone, password: 'pw1234' } })).status, 429);
 });

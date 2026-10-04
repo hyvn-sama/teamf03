@@ -8,6 +8,8 @@ import {
   InputError, createEvent, editEvent, cleanSettlement, newParticipant, selfUpdate, hostUpdate, setSupplyEach, newId,
 } from '../js/ops.js';
 import { dataStamp } from '../js/calc.js';
+import { cleanSignup, normalizePhone } from '../js/auth.js';
+import { hashPassword, verifyPassword } from './_auth.js';
 import * as db from './_store.js';
 
 const hash = (token) => createHash('sha256').update(String(token)).digest('hex');
@@ -80,6 +82,29 @@ async function bundle(event) {
 // (브라우저에는 s-maxage가 전달되지 않음. 방금 내가 바꾼 내용은 클라이언트가 캐시를 건너뛰어 받음)
 const CDN_CACHE = 'public, s-maxage=5, stale-while-revalidate=10';
 
+// ── 로그인
+const MAX_FAILS = 10;
+const publicUser = (u) => ({ phone: u.phone, name: u.name });
+
+async function sessionUser(session) {
+  if (!session || typeof session !== 'string' || session.length > 64) return null;
+  const phone = await db.getSession(session);
+  if (!phone) return null;
+  const u = await db.getUser(phone);
+  return u ? publicUser(u) : null;
+}
+
+function needUser(user) {
+  if (!user) throw new HttpError(401, '로그인이 필요해요.');
+  return user;
+}
+
+async function startSession(u) {
+  const session = newId(32);
+  await db.setSession(session, u.phone);
+  return { session, user: publicUser(u) };
+}
+
 async function handlePost(body) {
   const { action, id, token, pid, ptoken } = body;
   const data = body.data && typeof body.data === 'object' ? body.data : null;
@@ -88,6 +113,35 @@ async function handlePost(body) {
     return data;
   };
   const now = new Date();
+  const user = await sessionUser(body.session);
+
+  if (action === 'signup') {
+    const input = cleanSignup(body);
+    const { hash: passHash, salt } = await hashPassword(input.password);
+    const created = await db.createUserIfAbsent({ phone: input.phone, name: input.name, passHash, salt, createdAt: now.toISOString() });
+    if (!created) throw new HttpError(409, '이미 가입된 번호예요. 로그인해주세요.');
+    return startSession({ phone: input.phone, name: input.name });
+  }
+
+  if (action === 'login') {
+    const phone = normalizePhone(body.phone);
+    if ((await db.failCount(phone)) >= MAX_FAILS) throw new HttpError(429, '비밀번호를 여러 번 틀렸어요. 15분 뒤에 다시 시도해주세요.');
+    const found = await db.getUser(phone);
+    const pw = String(body.password ?? '');
+    if (!found || pw.length < 4 || pw.length > 30 || !(await verifyPassword(pw, found))) {
+      await db.addFail(phone);
+      throw new HttpError(401, '전화번호 또는 비밀번호가 맞지 않아요.');
+    }
+    await db.clearFail(phone);
+    return startSession(found);
+  }
+
+  if (action === 'logout') {
+    if (typeof body.session === 'string') await db.deleteSession(body.session);
+    return { ok: true };
+  }
+
+  if (action === 'whoami') return { user: needUser(user) };
 
   if (action === 'create') {
     const input = needData();

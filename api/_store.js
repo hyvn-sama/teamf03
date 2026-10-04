@@ -72,3 +72,56 @@ export async function updateParticipant(id, pid, fn) {
   }
   throw new ConflictError('동시에 수정 중이에요. 잠시 후 다시 시도해주세요.');
 }
+
+// ── 로그인: 사용자·세션·로그인 실패 횟수·내 모임
+const SESSION_TTL = 60 * 60 * 24 * 30;
+const USER_TTL = 60 * 60 * 24 * 365;
+const FAIL_WINDOW = 60 * 15;
+
+export async function getUser(phone) {
+  const raw = await cmd('GET', `user:${phone}`);
+  return raw ? JSON.parse(raw) : null;
+}
+
+export async function createUserIfAbsent(user) {
+  return (await cmd('SET', `user:${user.phone}`, JSON.stringify(user), 'EX', USER_TTL, 'NX')) === 'OK';
+}
+
+export const setSession = (token, phone) => cmd('SET', `session:${token}`, phone, 'EX', SESSION_TTL);
+export const getSession = (token) => cmd('GET', `session:${token}`);
+export const deleteSession = (token) => cmd('DEL', `session:${token}`);
+
+export async function failCount(phone) {
+  return Number((await cmd('GET', `loginfail:${phone}`)) || 0);
+}
+
+export async function addFail(phone) {
+  const n = await cmd('INCR', `loginfail:${phone}`);
+  if (n === 1) await cmd('EXPIRE', `loginfail:${phone}`, FAIL_WINDOW);
+  return n;
+}
+
+export const clearFail = (phone) => cmd('DEL', `loginfail:${phone}`);
+
+// 내 모임: eventId → { role: 'host'|'guest', pid?, at }. 주최자가 응답해도 role은 host 유지
+export async function getUserEvents(phone) {
+  const flat = (await cmd('HGETALL', `user:${phone}:events`)) || [];
+  const out = {};
+  for (let i = 0; i < flat.length; i += 2) out[flat[i]] = JSON.parse(flat[i + 1]);
+  return out;
+}
+
+export async function addUserEvent(phone, eventId, info) {
+  const key = `user:${phone}:events`;
+  const prevRaw = await cmd('HGET', key, eventId);
+  const prev = prevRaw ? JSON.parse(prevRaw) : {};
+  const next = {
+    ...prev,
+    ...info,
+    role: prev.role === 'host' || info.role === 'host' ? 'host' : 'guest',
+    at: prev.at || new Date().toISOString(),
+  };
+  await cmd('HSET', key, eventId, JSON.stringify(next));
+  await cmd('EXPIRE', key, USER_TTL);
+  return next;
+}
