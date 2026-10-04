@@ -48,13 +48,16 @@ export const setLocalSeen = (id, v) => write(seenKey(id), v);
 const SESSION = 'moim.session';
 export const session = () => read(SESSION, null);
 export const setSession = (s) => write(SESSION, s);
+// 로그아웃(만료 포함): 이 브라우저의 관리 토큰·응답 기록을 모두 지운다.
+// 로그인할 때 이미 계정으로 옮겼으므로(claim) 잃는 것은 없고, 같은 기기에서 다음에 로그인하는 사람이
+// 앞사람의 모임을 주최자로 보거나 앞사람 응답을 "나"로 쓰지 않게 한다.
 export function clearSession() {
   try {
     localStorage.removeItem(SESSION);
-    // 계정으로만 확인되던(토큰 없는) 응답 기록은 다음 사용자가 내 것으로 오해하지 않게 지움
+    localStorage.removeItem(HOSTED);
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
-      if (k && k.startsWith('moim.me.') && !(read(k, {}) || {}).token) localStorage.removeItem(k);
+      if (k && k.startsWith('moim.me.')) localStorage.removeItem(k);
     }
   } catch { /* 저장소를 못 쓰면 지울 것도 없음 */ }
 }

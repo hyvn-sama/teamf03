@@ -122,6 +122,8 @@ async function claim(u, body) {
     if (!h || !validId(h.id)) continue;
     const event = await db.getEvent(h.id);
     if (!event || !isHost(event, h.token)) continue;
+    // 다른 계정이 만든 모임은 옮기지 않는다 (같은 기기에 앞사람의 관리 토큰이 남아 있던 경우)
+    if (event.ownerPhone && event.ownerPhone !== u.phone) continue;
     if (!event.ownerPhone) await db.updateEvent(h.id, (e) => (e.ownerPhone ? e : { ...e, ownerPhone: u.phone }));
     await db.addUserEvent(u.phone, h.id, { role: 'host' });
     hosted++;
@@ -209,7 +211,10 @@ async function handlePost(body) {
     const items = [];
     for (const [eventId, info] of entries) {
       const event = await db.getEvent(eventId);
-      if (event) items.push({ role: info.role, pid: info.pid || null, ...(await bundle(event)) });
+      if (!event) continue;
+      // 주최 표시는 실제로 만든 사람일 때만 (예전에 잘못 옮겨진 다른 계정의 모임은 응답했으면 참여로, 아니면 숨김)
+      const role = info.role === 'host' && event.ownerPhone && event.ownerPhone !== u.phone ? (info.pid ? 'guest' : null) : info.role;
+      if (role) items.push({ role, pid: info.pid || null, ...(await bundle(event)) });
     }
     return { items };
   }

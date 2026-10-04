@@ -235,19 +235,34 @@ test('로그인 응답: 계정당 한 번, 다른 기기에서도 본인 수정,
   assert.equal((await call('POST', { body: { action: 'mine' } })).status, 401);
 });
 
-test('claim: 브라우저에 있던 주최·응답 기록을 계정으로 (토큰 검증)', async () => {
+test('claim: 브라우저에 있던 응답 기록을 계정으로 (토큰 검증), 다른 계정이 만든 모임은 주최로 옮기지 않음', async () => {
   const a = await signup(); const b = await signup('b');
   const { json } = await call('POST', { body: { action: 'create', session: a.session, data: input } });
   const id = json.event.id;
   const r = await call('POST', { body: { action: 'rsvp', id, data: { name: '익명', rsvp: 'yes' } } });
+  // 같은 기기에서 a가 만든 모임의 관리 토큰이 남아 있어도 b의 주최 모임이 되지 않는다
   const res = await call('POST', { body: { action: 'claim', session: b.session,
     hosted: [{ id, token: json.editToken }, { id, token: 'wrong' }],
     joined: [{ id, pid: r.json.participant.id, ptoken: r.json.participantToken }, { id, pid: r.json.participant.id, ptoken: 'x' }] } });
-  assert.deepEqual(res.json, { hosted: 1, joined: 1 });
+  assert.deepEqual(res.json, { hosted: 0, joined: 1 });
   const mine = await call('POST', { body: { action: 'mine', session: b.session } });
-  assert.equal(mine.json.items[0].role, 'host');
+  assert.equal(mine.json.items[0].role, 'guest');
   assert.equal(mine.json.items[0].pid, r.json.participant.id);
   assert.equal((await call('POST', { body: { action: 'self', id, pid: r.json.participant.id, session: b.session, data: { late: 10 } } })).status, 200);
+  assert.equal((await call('POST', { body: { action: 'edit', id, session: b.session, data: input } })).status, 403);
+  // 만든 사람 본인은 그대로 옮겨짐
+  const own = await call('POST', { body: { action: 'claim', session: a.session, hosted: [{ id, token: json.editToken }], joined: [] } });
+  assert.deepEqual(own.json, { hosted: 1, joined: 0 });
+});
+
+test('mine: 예전에 잘못 옮겨진 다른 계정의 모임은 주최로 보이지 않음', async () => {
+  const a = await signup(); const c = await signup('c');
+  const { json } = await call('POST', { body: { action: 'create', session: a.session, data: input } });
+  // 고치기 전 claim이 남긴 기록을 흉내: c의 내 모임에 a의 모임이 host로 들어가 있음
+  const key = `user:${c.phone}:events`;
+  (hashes.get(key) || hashes.set(key, new Map()).get(key)).set(json.event.id, JSON.stringify({ role: 'host', at: new Date().toISOString() }));
+  const mine = await call('POST', { body: { action: 'mine', session: c.session } });
+  assert.ok(!mine.json.items.some((x) => x.event.id === json.event.id));
 });
 
 test('리뷰 중요1: 만료·로그아웃된 세션으로 요청하면 401 (익명 처리하지 않음)', async () => {

@@ -149,10 +149,14 @@ function localCall(action, { id, token, pid, ptoken, session: sess, data = {}, .
       out = { user: needUser() };
     } else if (action === 'mine') {
       const u = needUser();
+      const roleOf = (eventId, info) => {
+        const owner = db.events[eventId].ownerPhone;
+        return info.role === 'host' && owner && owner !== u.phone ? (info.pid ? 'guest' : null) : info.role;
+      };
       const items = Object.entries(db.userEvents[u.phone] || {})
         .sort((a, b) => b[1].at.localeCompare(a[1].at))
-        .filter(([eventId]) => db.events[eventId])
-        .map(([eventId, info]) => ({ role: info.role, pid: info.pid || null, ...localBundle(db, eventId) }));
+        .filter(([eventId, info]) => db.events[eventId] && roleOf(eventId, info))
+        .map(([eventId, info]) => ({ role: roleOf(eventId, info), pid: info.pid || null, ...localBundle(db, eventId) }));
       out = { items };
     } else if (action === 'me') {
       const e = need();
@@ -166,6 +170,7 @@ function localCall(action, { id, token, pid, ptoken, session: sess, data = {}, .
       for (const h of rest.hosted || []) {
         const e = db.events[h.id];
         if (!e || e.editTokenHash !== h.token) continue;
+        if (e.ownerPhone && e.ownerPhone !== u.phone) continue; // 다른 계정이 만든 모임은 옮기지 않음
         if (!e.ownerPhone) e.ownerPhone = u.phone;
         addUserEvent(db, u.phone, h.id, { role: 'host' });
         hosted++;
