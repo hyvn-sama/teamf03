@@ -1,6 +1,6 @@
 // 01 안내장 만들기  /  안내장 수정·재공유 (#/e/:id/edit) — 같은 폼을 쓴다
 import { api } from '../api.js';
-import { addHosted, removeHosted, session } from '../store.js';
+import { addHosted, session } from '../store.js';
 import { hostAccess, noHostView, loginHref } from '../access.js';
 import { EDIT_FIELDS, FIELD_LABELS, diffEvent, displayValue, todayStr, josa, supplyItems } from '../calc.js';
 import { esc, icon, toast, copyText, inviteUrl, shareInvite, pageHead } from '../ui.js';
@@ -140,15 +140,7 @@ export async function render(root, { id, query, edit }) {
           <div class="preview"></div>
           <p class="hint">선택 항목은 비워두면 안내장에 나타나지 않아요.</p>`}
       </aside>
-    </div>
-    ${edit ? `
-      <section class="card card-pad delete-box">
-        <div>
-          <h3>안내장 삭제</h3>
-          <p class="hint">안내장과 응답${people.length ? ` ${people.length}개` : ''}·정산 기록이 모두 지워지고, 초대 링크도 더 이상 열리지 않아요. 되돌릴 수 없어요.</p>
-        </div>
-        <button class="btn delete-event" type="button">${icon('alert')}이 안내장 삭제하기</button>
-      </section>` : ''}`;
+    </div>`;
 
   const form = root.querySelector('form');
   const submit = form.querySelector('.submit');
@@ -251,21 +243,6 @@ export async function render(root, { id, query, edit }) {
     root.querySelector('.save-share').addEventListener('click', save);
     root.querySelector('.copy-link').addEventListener('click', () => copyText(inviteUrl(id), '링크를 복사했어요'));
     root.querySelector('.share-again').addEventListener('click', () => shareInvite(original));
-    const delBtn = root.querySelector('.delete-event');
-    delBtn.addEventListener('click', async () => {
-      const who = people.length ? `\n응답한 ${people.length}명도 더 이상 안내장을 볼 수 없어요.` : '';
-      if (!window.confirm(`'${original.title}' 안내장을 삭제할까요?${who}\n삭제하면 되돌릴 수 없어요.`)) return;
-      delBtn.disabled = true;
-      try {
-        await api.remove(id, token);
-        removeHosted(id);
-        toast('안내장을 삭제했어요');
-        location.hash = '#/my';
-      } catch (err) {
-        toast(err.message, 'err');
-        delBtn.disabled = false;
-      }
-    });
   }
 
   update();

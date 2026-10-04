@@ -1,7 +1,7 @@
 // 02 초대장 보기 (참석자 화면) + D-DAY 당일 모드
 import { api, getMode } from '../api.js';
 import { hostToken, addHosted, myself, setMyself, localSeen, setLocalSeen, session } from '../store.js';
-import { loginHref } from '../access.js';
+import { loginHref, confirmDelete } from '../access.js';
 import {
   countRsvp, seenCount, amountFor, daysUntil, formatDate, formatTime, timeLeft, won, displayValue,
   supplyStatus, lateList, changeSummary, josa, pendingChanges, latestChanges, googleCalendarUrl,
@@ -44,6 +44,7 @@ function hostBar(e, isNew) {
       <button class="btn sm" data-act="share">${icon('share')}공유</button>
       <button class="btn sm" data-act="copy-admin" title="다른 기기에서 관리할 때 쓰는 링크">${icon('copy')}관리 링크</button>
       <a class="btn sm" href="#/e/${e.id}/edit">${icon('edit')}수정·재공유</a>
+      <button class="btn sm del-btn" data-act="delete">삭제</button>
       <a class="btn sm" href="#/e/${e.id}/status">${icon('users')}참석 현황</a>
       <a class="btn sm" href="#/e/${e.id}/settle">${icon('money')}정산</a>
     </nav>`;
@@ -444,6 +445,14 @@ export async function render(root, { id, query, isStale }) {
       shareInvite(e, `[변경 안내 다시 알림] ${names.join(', ')}님, ${josa(changeSummary(e), '이', '가')} 바뀌었어요. 링크에서 확인 부탁드려요!
 
 `);
+      return;
+    }
+    if (act === 'delete') {
+      btn.disabled = true;
+      confirmDelete(e, data.participants.length).then((ok) => {
+        if (ok) location.hash = '#/my';
+        else btn.disabled = false;
+      });
       return;
     }
     if (act === 'copy-admin') copyText(adminUrl(id, token), '관리 링크를 복사했어요. 참석자에게는 보내지 마세요.');

@@ -1,7 +1,7 @@
 // 내 알림장 — 이 브라우저에서 만든 안내장 목록 (가까운 모임부터)
 import { api } from '../api.js';
 import { session } from '../store.js';
-import { loginHref } from '../access.js';
+import { loginHref, confirmDelete } from '../access.js';
 import { daysUntil, countRsvp, seenCount, settleSummary, formatDate, formatTime, josa, changeSummary, lateList } from '../calc.js';
 import { esc, nl2br, icon, toast } from '../ui.js';
 import { ddayBadge } from '../card.js';
@@ -26,11 +26,14 @@ function progress(e, ps) {
     <div class="bar"><i class="yes" style="width:${Math.min(100, (c.yes / goal) * 100)}%"></i></div>`;
 }
 
-// 주최한 모임만 수정·재공유, 참여한 모임은 자세히 보기만
+const deleteBtn = (e) => `<button type="button" class="btn sm del-btn" data-del="${e.id}" aria-label="${esc(e.title)} 삭제">삭제</button>`;
+
+// 주최한 모임만 수정·재공유·삭제, 참여한 모임은 자세히 보기만
 const buttons = (e, role) => (role === 'host' ? `
   <div class="btn-row">
     <a class="btn sm" href="#/e/${e.id}">자세히 보기</a>
     <a class="btn sm primary" href="#/e/${e.id}/edit">수정 · 재공유</a>
+    ${deleteBtn(e)}
   </div>` : `<a class="btn sm block" href="#/e/${e.id}">자세히 보기</a>`);
 
 const roleTag = (role) => `<span class="role-tag ${role}">${role === 'host' ? '주최' : '참여'}</span>`;
@@ -81,7 +84,7 @@ function pastCard({ event: e, participants: ps, role }) {
       <p class="ev-meta">${icon('calendar')}${esc(formatDate(e.date))} ${esc(formatTime(e.startTime))}</p>
       <p class="ev-meta">${icon('pin')}${esc(e.placeName)}</p>
       <div class="progress-label"><span>최종 참석 ${c.yes}명</span><b><a href="#/e/${e.id}/status">${settleText}</a></b></div>
-      ${role === 'host' ? `<a class="btn sm block ghost" href="#/create?from=${e.id}">복제해서 새로 만들기</a>` : `<a class="btn sm block ghost" href="#/e/${e.id}">자세히 보기</a>`}
+      ${role === 'host' ? `<div class="btn-row"><a class="btn sm ghost" href="#/create?from=${e.id}">복제해서 새로 만들기</a>${deleteBtn(e)}</div>` : `<a class="btn sm block ghost" href="#/e/${e.id}">자세히 보기</a>`}
     </article>`;
 }
 
@@ -136,11 +139,26 @@ export async function render(root, { isStale }) {
         const { seedSamples } = await import('../sample.js');
         await seedSamples(api);
         toast('샘플 모임 6개를 불러왔어요');
-        if (!isStale()) render(root, { isStale });
+        if (!isStale()) redraw();
       } catch (err) {
         toast(err.message, 'err');
         sampleBtn.disabled = false;
       }
     });
   }
+
+  const onClick = async (ev) => {
+    const btn = ev.target.closest('[data-del]');
+    if (!btn) return;
+    const item = items.find((x) => x.event.id === btn.dataset.del);
+    if (!item) return;
+    btn.disabled = true;
+    if (await confirmDelete(item.event, item.participants.length)) redraw();
+    else btn.disabled = false;
+  };
+  root.addEventListener('click', onClick);
+  return () => root.removeEventListener('click', onClick);
 }
+
+// 라우터를 통해 다시 그려야 이 화면의 클릭 처리기가 정리된다
+const redraw = () => window.dispatchEvent(new HashChangeEvent('hashchange'));

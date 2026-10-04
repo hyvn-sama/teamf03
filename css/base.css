@@ -119,6 +119,10 @@ body[data-view='home'] .nav-link { visibility: hidden; }
 .input-unit { position: relative; }
 .input-unit .input { padding-right: 36px; text-align: right; }
 .input-unit span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; }
+/* 삭제 버튼 (내 알림장 카드·초대장 주최자 메뉴) */
+.btn.del-btn { color: #b3321f; border-color: #e7b8ae; }
+.btn.del-btn:hover { background: #fbeae6; }
+.btn-row > .del-btn { flex: none; }
 .tag { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; }
 .tag.req { background: var(--brand-soft); color: var(--brand); }
 .tag.opt { background: var(--gray-soft); color: var(--muted); }
