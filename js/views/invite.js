@@ -299,7 +299,9 @@ export async function render(root, { id, query, isStale }) {
   // 로그인했으면 이 안내장에서 내 권한(주최자인지, 이미 응답했는지)을 계정 기준으로 확인
   let account = { isHost: false, participant: null };
   if (session()) account = await api.me(id).catch(() => account);
-  if (account.participant && !myself(id)) setMyself(id, account.participant.id, null);
+  // 계정에 연결된 응답이 "나" — 같은 기기에서 계정을 바꿔도 앞사람 응답이 내 것으로 보이지 않게
+  let linkedPid = account.participant ? account.participant.id : null;
+  if (linkedPid && (myself(id) || {}).pid !== linkedPid) setMyself(id, linkedPid, null);
   const isHost = !!hostToken(id) || account.isHost;
   let data = await api.get(id, { fresh: isHost });
   const isNew = query.new === '1';
@@ -310,7 +312,9 @@ export async function render(root, { id, query, isStale }) {
   const ctxOf = () => {
     const auth = myself(id);
     // 토큰이 없는 예전 기록은 본인 확인을 못 하므로 다시 응답하게 한다
-    const me = (auth && (auth.token || session()) && data.participants.find((p) => p.id === auth.pid)) || null;
+    // 토큰 없는 기록은 지금 로그인한 계정의 응답일 때만 "나"로 인정
+    const valid = auth && (auth.token || (session() && auth.pid === linkedPid));
+    const me = (valid && data.participants.find((p) => p.id === auth.pid)) || null;
     const seenVer = me ? me.seenVersion || 0 : localSeen(id);
     return { me, auth, isHost, pending: pendingChanges(data.event, seenVer), isNew, eventId: id };
   };
@@ -395,6 +399,7 @@ export async function render(root, { id, query, isStale }) {
       run(async () => {
         const res = await api.rsvp(id, { name, rsvp });
         setMyself(id, res.participant.id, res.participantToken);
+        if (session()) linkedPid = res.participant.id;
         return res;
       }, rsvp === 'yes' ? '참석으로 응답했어요. 캘린더에도 추가해보세요!' : '응답했어요');
       return;

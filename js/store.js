@@ -51,6 +51,11 @@ export const setSession = (s) => write(SESSION, s);
 export function clearSession() {
   try {
     localStorage.removeItem(SESSION);
+    // 계정으로만 확인되던(토큰 없는) 응답 기록은 다음 사용자가 내 것으로 오해하지 않게 지움
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('moim.me.') && !(read(k, {}) || {}).token) localStorage.removeItem(k);
+    }
   } catch { /* 저장소를 못 쓰면 지울 것도 없음 */ }
 }
 

@@ -91,6 +91,9 @@ window.addEventListener('moim:login', renderAuth);
 window.addEventListener('moim:logout', () => {
   renderAuth();
   toast('로그인이 만료됐어요. 다시 로그인해주세요.', 'err');
+  // 지금 보던 화면으로 돌아오도록 로그인 화면으로 보냄
+  const here = (location.hash.replace(/^#/, '') || '/').split('?')[0];
+  if (here !== '/login') location.hash = `#/login?next=${encodeURIComponent(here)}`;
 });
 
 window.addEventListener('hashchange', () => {

@@ -110,6 +110,8 @@ function localCall(action, { id, token, pid, ptoken, session: sess, data = {}, .
   const userPhone = sess && db.sessions[sess];
   const user = userPhone && db.users[userPhone] ? { phone: userPhone, name: db.users[userPhone].name } : null;
   const needUser = () => user || fail('로그인이 필요해요.', 401);
+  // 만료·로그아웃된 세션은 익명으로 처리하지 않고 401 (서버와 같은 규칙)
+  if (sess && !user && !['signup', 'login', 'logout'].includes(action)) fail('로그인이 만료됐어요. 다시 로그인해주세요.', 401);
   const need = () => db.events[id] || fail('안내장을 찾을 수 없어요.', 404);
   const canHost = (e) => e.editTokenHash === token || Boolean(user && e.ownerPhone === user.phone);
   const needHost = () => {
@@ -171,6 +173,18 @@ function localCall(action, { id, token, pid, ptoken, session: sess, data = {}, .
       for (const j of rest.joined || []) {
         const p = db.people[j.id] && db.people[j.id][j.pid];
         if (!p || p.tokenHash !== j.ptoken || (p.userPhone && p.userPhone !== u.phone)) continue;
+        const linked = (db.userEvents[u.phone] || {})[j.id];
+        const kept = linked && linked.pid && linked.pid !== j.pid && db.people[j.id][linked.pid];
+        if (kept) {
+          // 이미 계정 응답이 있으면 하나로 합침 (더 최근 응답 내용 유지)
+          if ((p.updatedAt || '') > (kept.updatedAt || '')) {
+            const { rsvp, settle, paidAt, brings, late, updatedAt } = p;
+            Object.assign(kept, { rsvp, settle, paidAt, brings, late, updatedAt, seenVersion: Math.max(kept.seenVersion || 0, p.seenVersion || 0) });
+          }
+          delete db.people[j.id][j.pid];
+          joined++;
+          continue;
+        }
         p.userPhone = u.phone;
         addUserEvent(db, u.phone, j.id, { role: 'guest', pid: p.id });
         joined++;

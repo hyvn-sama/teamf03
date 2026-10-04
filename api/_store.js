@@ -125,3 +125,10 @@ export async function addUserEvent(phone, eventId, info) {
   await cmd('EXPIRE', key, USER_TTL);
   return next;
 }
+
+export async function getParticipant(id, pid) {
+  const raw = await cmd('HGET', peopleKey(id), pid);
+  return raw ? JSON.parse(raw) : null;
+}
+
+export const deleteParticipant = (id, pid) => cmd('HDEL', peopleKey(id), pid);

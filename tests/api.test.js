@@ -34,6 +34,7 @@ globalThis.fetch = async (url, { body }) => {
   if (cmd === 'HSET') { (hashes.get(key) || hashes.set(key, new Map()).get(key)).set(rest[0], rest[1]); result = 1; }
   if (cmd === 'HGET') result = hashes.get(key)?.get(rest[0]) ?? null;
   if (cmd === 'HGETALL') result = [...(hashes.get(key) || new Map())].flat();
+  if (cmd === 'HDEL') { result = hashes.get(key)?.delete(rest[0]) ? 1 : 0; }
   if (cmd === 'DEL') { result = strings.delete(key) ? 1 : 0; hashes.delete(key); }
   if (cmd === 'INCR') { const n = Number(strings.get(key) || 0) + 1; strings.set(key, String(n)); result = n; }
   return { json: async () => ({ result }) };
@@ -247,4 +248,38 @@ test('claim: 브라우저에 있던 주최·응답 기록을 계정으로 (토�
   assert.equal(mine.json.items[0].role, 'host');
   assert.equal(mine.json.items[0].pid, r.json.participant.id);
   assert.equal((await call('POST', { body: { action: 'self', id, pid: r.json.participant.id, session: b.session, data: { late: 10 } } })).status, 200);
+});
+
+test('리뷰 중요1: 만료·로그아웃된 세션으로 요청하면 401 (익명 처리하지 않음)', async () => {
+  const host = await signup(); const guest = await signup('손님');
+  const { json } = await call('POST', { body: { action: 'create', session: host.session, data: input } });
+  const id = json.event.id;
+  const r = await call('POST', { body: { action: 'rsvp', id, session: guest.session, data: { name: '손님', rsvp: 'yes' } } });
+  await call('POST', { body: { action: 'logout', session: guest.session } });
+  const stale = guest.session;
+  assert.equal((await call('POST', { body: { action: 'rsvp', id, session: stale, data: { name: '손님', rsvp: 'no' } } })).status, 401);
+  assert.equal((await call('POST', { body: { action: 'self', id, pid: r.json.participant.id, session: stale, data: { late: 10 } } })).status, 401);
+  assert.equal((await call('POST', { body: { action: 'me', id, session: stale } })).status, 401);
+  assert.equal((await call('POST', { body: { action: 'edit', id, session: 'nope', data: input } })).status, 401);
+  assert.equal((await call('GET', { query: { id } })).json.participants.length, 1, '익명 참가자가 새로 생기지 않음');
+  // 세션 없이(익명) 응답은 그대로 가능
+  assert.equal((await call('POST', { body: { action: 'rsvp', id, data: { name: '익명', rsvp: 'yes' } } })).status, 200);
+});
+
+test('리뷰 중요4: 계정 응답이 있는데 다른 기기의 익명 응답을 옮기면 한 명으로 합침 (최신 응답 유지)', async () => {
+  const host = await signup(); const guest = await signup('손님');
+  const { json } = await call('POST', { body: { action: 'create', session: host.session, data: input } });
+  const id = json.event.id;
+  const p1 = (await call('POST', { body: { action: 'rsvp', id, session: guest.session, data: { name: '손님', rsvp: 'maybe' } } })).json.participant;
+  await new Promise((r) => setTimeout(r, 5));
+  const anon = await call('POST', { body: { action: 'rsvp', id, data: { name: '손님', rsvp: 'yes' } } });
+  const res = await call('POST', { body: { action: 'claim', session: guest.session, hosted: [],
+    joined: [{ id, pid: anon.json.participant.id, ptoken: anon.json.participantToken }] } });
+  assert.deepEqual(res.json, { hosted: 0, joined: 1 });
+  const ps = (await call('GET', { query: { id, _: 1 } })).json.participants;
+  assert.equal(ps.length, 1, '참가자 한 명');
+  assert.equal(ps[0].id, p1.id, '계정의 원래 참가자 유지');
+  assert.equal(ps[0].rsvp, 'yes', '더 최근 익명 응답 내용으로');
+  const mine = await call('POST', { body: { action: 'mine', session: guest.session } });
+  assert.equal(mine.json.items[0].pid, p1.id);
 });

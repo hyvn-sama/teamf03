@@ -128,6 +128,12 @@ async function claim(u, body) {
   }
   for (const j of list(body.joined)) {
     if (!j || !validId(j.id) || !j.ptoken) continue;
+    // 이 모임에 이미 계정 응답이 있으면 새로 연결하지 않고 하나로 합친다 (같은 사람이 두 명으로 세어지지 않게)
+    const linked = (await db.getUserEvents(u.phone))[j.id];
+    if (linked && linked.pid && linked.pid !== String(j.pid)) {
+      if (await mergeInto(j, linked.pid)) joined++;
+      continue;
+    }
     const p = await db.updateParticipant(j.id, String(j.pid), (cur) => {
       if (hash(j.ptoken) !== cur.tokenHash) throw new HttpError(403, '토큰 불일치');
       return cur.userPhone ? cur : { ...cur, userPhone: u.phone };
@@ -139,6 +145,20 @@ async function claim(u, body) {
   return { hosted, joined };
 }
 
+// 익명 응답(j)을 계정 응답(keepPid)에 합치고 익명 응답은 지운다. 더 최근에 바뀐 쪽의 응답 내용을 남긴다
+async function mergeInto(j, keepPid) {
+  const anon = await db.getParticipant(j.id, String(j.pid));
+  if (!anon || hash(j.ptoken) !== anon.tokenHash || anon.userPhone) return false;
+  const kept = await db.updateParticipant(j.id, keepPid, (cur) => {
+    if ((anon.updatedAt || '') <= (cur.updatedAt || '')) return cur;
+    const { rsvp, settle, paidAt, brings, late } = anon;
+    return { ...cur, rsvp, settle, paidAt, brings, late, seenVersion: Math.max(cur.seenVersion || 0, anon.seenVersion || 0), updatedAt: anon.updatedAt };
+  });
+  if (!kept) return false;
+  await db.deleteParticipant(j.id, anon.id);
+  return true;
+}
+
 async function handlePost(body) {
   const { action, id, token, pid, ptoken } = body;
   const data = body.data && typeof body.data === 'object' ? body.data : null;
@@ -148,6 +168,10 @@ async function handlePost(body) {
   };
   const now = new Date();
   const user = await sessionUser(body.session);
+  // 세션을 보냈는데 만료·로그아웃된 경우: 익명으로 처리하면 응답이 중복되므로 401로 알려 다시 로그인하게 한다
+  if (body.session && !user && !['signup', 'login', 'logout'].includes(action)) {
+    throw new HttpError(401, '로그인이 만료됐어요. 다시 로그인해주세요.');
+  }
 
   if (action === 'signup') {
     const input = cleanSignup(body);
