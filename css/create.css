@@ -31,8 +31,12 @@
 .change-box .save-share { margin: 16px 18px 18px; width: calc(100% - 36px); }
 .reshare h3 { font-size: 16px; }
 .reshare .hint { margin: 2px 0 12px; }
+/* 안내장 삭제 — 오른쪽 고정 칸이 화면보다 길어져도 가려지지 않게 페이지 맨 아래에 따로 둔다 */
+.delete-box { margin-top: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid #f1d3cc; }
 .delete-box h3 { font-size: 16px; }
-.delete-box .hint { margin: 2px 0 12px; }
+.delete-box .hint { margin-top: 2px; }
+.delete-box .delete-event { flex: none; }
+@media (max-width: 520px) { .delete-box { flex-direction: column; align-items: stretch; } }
 .delete-box .delete-event { color: #b3321f; border-color: #e7b8ae; }
 .delete-box .delete-event:hover { background: #fbeae6; }
 .link-box { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border: 1px solid var(--line-strong); border-radius: 10px; margin-bottom: 10px; background: var(--brand-softer); }

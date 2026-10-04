@@ -135,17 +135,20 @@ export async function render(root, { id, query, edit }) {
             <p class="hint">내용은 그대로 두고 링크만 다시 보내요.</p>
             <div class="link-box"><span>${esc(inviteUrl(id))}</span><button class="btn sm dark copy-link" type="button">링크 복사</button></div>
             <button class="btn block share-again" type="button">카톡으로 다시 공유</button>
-          </div>
-          <div class="card card-pad delete-box">
-            <h3>안내장 삭제</h3>
-            <p class="hint">안내장과 응답${people.length ? ` ${people.length}개` : ''}·정산 기록이 모두 지워지고, 초대 링크도 더 이상 열리지 않아요. 되돌릴 수 없어요.</p>
-            <button class="btn block delete-event" type="button">${icon('alert')}이 안내장 삭제하기</button>
           </div>` : `
           <p class="preview-label">PREVIEW</p>
           <div class="preview"></div>
           <p class="hint">선택 항목은 비워두면 안내장에 나타나지 않아요.</p>`}
       </aside>
-    </div>`;
+    </div>
+    ${edit ? `
+      <section class="card card-pad delete-box">
+        <div>
+          <h3>안내장 삭제</h3>
+          <p class="hint">안내장과 응답${people.length ? ` ${people.length}개` : ''}·정산 기록이 모두 지워지고, 초대 링크도 더 이상 열리지 않아요. 되돌릴 수 없어요.</p>
+        </div>
+        <button class="btn delete-event" type="button">${icon('alert')}이 안내장 삭제하기</button>
+      </section>` : ''}`;
 
   const form = root.querySelector('form');
   const submit = form.querySelector('.submit');
