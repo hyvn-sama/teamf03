@@ -119,7 +119,7 @@ export async function render(root, { id, query, edit }) {
 
   root.innerHTML = `
     ${edit
-      ? pageHead({ iconName: 'edit', title: '모임장 수정 · 재공유', sub: `${esc(original.title)} · 바뀐 항목은 주황색으로 표시되고, 공유하면 참석자에게 변경 안내가 떠요.`, back: { href: '#/my', label: '내 모임장으로' } })
+      ? pageHead({ iconName: 'edit', title: '모임장 수정 · 재공유', sub: `${esc(original.title)} · 바뀐 항목은 코랄색으로 표시되고, 공유하면 참석자에게 변경 안내가 떠요.`, back: { href: '#/my', label: '내 모임장으로' } })
       : pageHead({ num: '01', title: '모임장 만들기', sub: '필수 항목만 채워도 모임장이 완성돼요. 입력하면 미리보기에 바로 반영돼요.' })}
     <div class="create-layout">
       ${formHTML()}

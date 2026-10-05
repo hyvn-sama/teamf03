@@ -58,6 +58,8 @@ h1, h2, h3, p { margin: 0; }
 .topbar-inner { max-width: 1080px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .logo { display: flex; align-items: center; gap: 6px; font-family: var(--round); font-size: 24px; line-height: 1; color: var(--brand); }
 .logo-mark { width: 28px; height: 28px; }
+/* 복숭아 몸통은 아이콘 아래쪽에 있어서(잎이 위) 글자를 그 높이에 맞춰 살짝 내린다 */
+.logo-text { position: relative; top: 3px; }
 .nav { display: flex; align-items: center; gap: 6px; }
 .nav-link { padding: 8px 12px; border-radius: 999px; color: var(--ink-2); font-size: 14px; }
 .nav-link.active { background: var(--brand-soft); color: var(--brand); font-weight: 700; }

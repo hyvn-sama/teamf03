@@ -271,7 +271,18 @@ function dayView(data, ctx) {
           <button class="btn dark" data-act="copy-address">주소 복사</button>
         </div>
       </section>
+      ${supplies.length || e.notes ? `
+        <section class="card card-pad${changed.has('supplies') || changed.has('notes') ? ' changed' : ''}">
+          <h2 class="today-h">챙길 것 · 유의사항</h2>
+          ${supplies.length ? `<div class="chips">${supplies.map((s) => `<span class="chip">${esc(s)}</span>`).join('')}</div>` : ''}
+          ${supplyStatus(e, participants).length ? `<button class="link-btn" data-act="open-supply">누가 무엇을 가져오는지 보기 ${icon('next')}</button>` : ''}
+          ${e.notes ? `<p class="today-notes">${nl2br(e.notes)}</p>` : ''}
+        </section>` : ''}
+      ${rsvpPanel(ctx)}
+      ${settlePanel(e, me)}
+      ${n === 0 && me && me.rsvp === 'yes' ? latePanel(me) : ''}
       ${calendarPanel(e)}
+      ${attendancePanel(e, participants, isHost, me, ctx.whoOpen)}
       ${e.hostName || e.hostPhone ? `
         <section class="card card-pad">
           <h2 class="today-h">${icon('users')}주최자 연락처</h2>
@@ -282,17 +293,6 @@ function dayView(data, ctx) {
               <a class="btn" href="sms:${esc(e.hostPhone.replace(/[^\d+]/g, ''))}">${icon('message')}문자</a>
             </div>` : ''}
         </section>` : ''}
-      ${n === 0 && me && me.rsvp === 'yes' ? latePanel(me) : ''}
-      ${supplies.length || e.notes ? `
-        <section class="card card-pad${changed.has('supplies') || changed.has('notes') ? ' changed' : ''}">
-          <h2 class="today-h">챙길 것 · 유의사항</h2>
-          ${supplies.length ? `<div class="chips">${supplies.map((s) => `<span class="chip">${esc(s)}</span>`).join('')}</div>` : ''}
-          ${supplyStatus(e, participants).length ? `<button class="link-btn" data-act="open-supply">누가 무엇을 가져오는지 보기 ${icon('next')}</button>` : ''}
-          ${e.notes ? `<p class="today-notes">${nl2br(e.notes)}</p>` : ''}
-        </section>` : ''}
-      ${rsvpPanel(ctx)}
-      ${settlePanel(e, me)}
-      ${attendancePanel(e, participants, isHost, me, ctx.whoOpen)}
     </div>
     ${me ? '' : '<button class="btn primary rsvp-jump" data-act="jump-rsvp">참석 여부 응답하기</button>'}`;
 }

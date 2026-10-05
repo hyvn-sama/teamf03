@@ -29,7 +29,7 @@ function supplyBox(supply, cls = '', oldHtml = '') {
     </div>`;
 }
 
-// changed: { field: before } — 바뀐 항목은 주황색 + 이전 값 취소선
+// changed: { field: before } — 바뀐 항목은 코랄색 + 이전 값 취소선
 // seen: { seen, total } — 바뀐 항목 옆에 확인 현황 버튼, supply: 준비물 담당 현황
 export function inviteCard(e, { changed = {}, preview = false, actions = '', seen = null, supply = null } = {}) {
   const was = (...fields) => fields.find((f) => f in changed);
