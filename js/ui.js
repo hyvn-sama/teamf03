@@ -29,6 +29,7 @@ const PATHS = {
   phone: '<path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A17 17 0 0 1 3 5a2 2 0 0 1 2-2z"/>',
   message: '<path d="M4 4h16v12H8l-4 4V4z"/>',
   map: '<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6"/><path d="M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   share: '<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/>',
 };
 
@@ -94,7 +95,26 @@ export async function shareInvite(e, prefix = '') {
   await copyText(`${text}\n${url}`, '안내 문구와 링크를 복사했어요. 카톡에 붙여넣어 주세요.');
 }
 
-export const mapUrl = (e) => `https://map.naver.com/p/search/${encodeURIComponent(e.address || e.placeName)}`;
+// 가게·건물 이름으로 찾아야 네이버 지도에서 그 장소가 바로 나온다 (장소명이 없을 때만 주소로)
+export const mapUrl = (e) => `https://map.naver.com/p/search/${encodeURIComponent(e.placeName || e.address)}`;
+
+// 아이폰 기본 캘린더: 서버가 내려주는 .ics를 Safari가 열면 "캘린더에 추가" 화면이 뜬다.
+// 카톡 안 브라우저는 .ics를 열지 못해서 Safari로 넘겨서 연다
+export function icsUrl(e) {
+  const url = `${location.origin}/api/events?ics=${encodeURIComponent(e.id)}`;
+  return /KAKAOTALK/i.test(navigator.userAgent) ? `kakaotalk://web/openExternal?url=${encodeURIComponent(url)}` : url;
+}
+
+// 체험 모드(서버 없음)에서는 이 브라우저에서 .ics 파일을 만들어 내려받는다
+export function downloadIcs(text, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/calendar;charset=utf-8' }));
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
 
 export const RSVP_LABEL = { yes: '참석', maybe: '미정', no: '불참' };
 export const SETTLE_LABEL = { done: '정산 완료', unpaid: '미정산', excluded: '정산 제외' };

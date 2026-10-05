@@ -45,15 +45,17 @@ const { default: handler } = await import('../api/events.js');
 async function call(method, { query = {}, body } = {}) {
   let status = 0;
   let json = null;
+  let text = null;
   const headers = {};
   const res = {
     headers,
     setHeader(k, v) { headers[k.toLowerCase()] = v; },
     status(s) { status = s; return this; },
     json(j) { json = j; return this; },
+    send(t) { text = t; return this; },
   };
-  await handler({ method, query, body }, res);
-  return { status, json, headers };
+  await handler({ method, query, body, headers: { host: 'moim.test' } }, res);
+  return { status, json, text, headers };
 }
 
 let phoneSeq = 10000000;
@@ -297,6 +299,47 @@ test('리뷰 중요4: 계정 응답이 있는데 다른 기기의 익명 응답�
   assert.equal(ps[0].rsvp, 'yes', '더 최근 익명 응답 내용으로');
   const mine = await call('POST', { body: { action: 'mine', session: guest.session } });
   assert.equal(mine.json.items[0].pid, p1.id);
+});
+
+test('명단에서 삭제: 주최자만, 로그인 참석자의 내 알림장에서도 빠짐, 주최자 본인 응답은 주최 기록 유지', async () => {
+  const host = await signup('주최자'); const guest = await signup('손님');
+  const { json } = await call('POST', { body: { action: 'create', session: host.session, data: input } });
+  const id = json.event.id;
+  const g = await call('POST', { body: { action: 'rsvp', id, session: guest.session, data: { name: '손님', rsvp: 'yes' } } });
+  const anon = await call('POST', { body: { action: 'rsvp', id, data: { name: '익명', rsvp: 'yes' } } });
+  const self = await call('POST', { body: { action: 'rsvp', id, session: host.session, data: { name: '주최자', rsvp: 'yes' } } });
+  const gid = g.json.participant.id;
+
+  // 참석자 본인·다른 사람은 남을 지울 수 없음
+  assert.equal((await call('POST', { body: { action: 'drop', id, pid: gid, session: guest.session } })).status, 403);
+  assert.equal((await call('POST', { body: { action: 'drop', id, pid: gid, token: anon.json.participantToken } })).status, 403);
+
+  const dropped = await call('POST', { body: { action: 'drop', id, pid: gid, session: host.session } });
+  assert.equal(dropped.status, 200);
+  assert.deepEqual(dropped.json.participants.map((p) => p.name), ['익명', '주최자']);
+  const mine = await call('POST', { body: { action: 'mine', session: guest.session } });
+  assert.ok(!mine.json.items.some((x) => x.event.id === id), '삭제된 참석자의 내 알림장에서 빠짐');
+  assert.equal((await call('POST', { body: { action: 'drop', id, pid: gid, session: host.session } })).status, 404);
+
+  // 관리 링크(토큰)로도 삭제, 주최자 본인 응답을 지워도 주최 모임으로 남음
+  assert.equal((await call('POST', { body: { action: 'drop', id, pid: anon.json.participant.id, token: json.editToken } })).status, 200);
+  assert.equal((await call('POST', { body: { action: 'drop', id, pid: self.json.participant.id, session: host.session } })).status, 200);
+  const hostMine = await call('POST', { body: { action: 'mine', session: host.session } });
+  const item = hostMine.json.items.find((x) => x.event.id === id);
+  assert.equal(item.role, 'host');
+  assert.equal(item.pid, null);
+  assert.equal(item.participants.length, 0);
+});
+
+test('아이폰 캘린더: ?ics= 로 일정 파일(.ics)을 내려줌', async () => {
+  const { json } = await call('POST', { body: { action: 'create', session: await hostSession(), data: { ...input, endTime: '19:30' } } });
+  const r = await call('GET', { query: { ics: json.event.id } });
+  assert.equal(r.status, 200);
+  assert.match(r.headers['content-type'], /^text\/calendar/);
+  assert.match(r.text, /DTSTART:20261031T080000Z/);
+  assert.match(r.text, /DTEND:20261031T103000Z/);
+  assert.match(r.text, new RegExp(`https://moim.test/#/e/${json.event.id}`));
+  assert.equal((await call('GET', { query: { ics: 'zzzzzzzz' } })).status, 404);
 });
 
 test('삭제: 주최자만, 안내장·응답·내 알림장 목록에서 모두 사라짐', async () => {

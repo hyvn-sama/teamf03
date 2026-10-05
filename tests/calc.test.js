@@ -3,8 +3,20 @@ import assert from 'node:assert/strict';
 import {
   daysUntil, ddayLabel, formatDate, formatTime, timeRange, countRsvp, defaultSettle,
   perPerson, amountFor, settleSummary, diffEvent, seenCount, googleCalendarUrl, won, supplyItems, supplyStatus, lateList,
-  pendingChanges, changeSummary, settleTargets, settleCountMismatch, settleReminder,
+  pendingChanges, changeSummary, settleTargets, settleCountMismatch, settleReminder, icsText,
 } from '../js/calc.js';
+
+test('icsText: 한국 시간을 UTC로, 특수문자 이스케이프, 긴 줄은 75바이트로 접기', () => {
+  const e = { id: 'abc12345', title: '송년회; 1차, 2차', date: '2026-12-31', startTime: '23:00', placeName: '하이브 라운지', address: '서울시 강남구', notes: '주차 가능\n늦으면 연락'.repeat(5) };
+  const text = icsText(e, 'https://x.test/#/e/abc12345', new Date('2026-10-05T00:00:00Z'));
+  assert.match(text, /^BEGIN:VCALENDAR\r\n/);
+  assert.match(text, /DTSTART:20261231T140000Z\r\n/);
+  assert.match(text, /DTEND:20261231T160000Z\r\n/, '종료 시간이 없으면 2시간 뒤');
+  assert.match(text, /SUMMARY:송년회\\; 1차\\, 2차\r\n/);
+  assert.match(text, /주차 가능\\n늦으면/);
+  for (const line of text.split('\r\n')) assert.ok(new TextEncoder().encode(line).length <= 75, line);
+  assert.equal(icsText({ ...e, startTime: '08:30', endTime: '01:00' }, '').match(/DTEND:(\w+)/)[1], '20261231T160000Z', '자정 넘기면 다음 날');
+});
 
 test('settleReminder: 미입금 참석자 이름·금액·계좌로 다시 알림 문구', () => {
   const ps = [

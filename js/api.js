@@ -228,6 +228,13 @@ function localCall(action, { id, token, pid, ptoken, session: sess, data = {}, .
     } else if (action === 'host') {
       const e = needHost();
       db.people[id][pid] = hostUpdate(needPerson(), data, e, now);
+    } else if (action === 'drop') {
+      needHost();
+      const p = needPerson();
+      delete db.people[id][pid];
+      const info = p.userPhone && (db.userEvents[p.userPhone] || {})[id];
+      if (info && info.role === 'host') info.pid = null;
+      else if (info) delete db.userEvents[p.userPhone][id];
     } else if (action === 'each') {
       db.events[id] = setSupplyEach(needHost(), data, now);
     } else if (action === 'rsvp') {
@@ -279,6 +286,7 @@ export const api = {
   edit: (id, token, data) => call('edit', { id, token, data }),
   settle: (id, token, data) => call('settle', { id, token, data }),
   host: (id, token, pid, data) => call('host', { id, token, pid, data }),
+  drop: (id, token, pid) => call('drop', { id, token, pid }),
   each: (id, token, data) => call('each', { id, token, data }),
   remove: (id, token) => call('delete', { id, token }),
   rsvp: (id, data, { anonymous = false } = {}) => call('rsvp', { id, data }, { anonymous }),

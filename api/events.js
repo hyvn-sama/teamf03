@@ -1,14 +1,15 @@
 // 서버 API — 하나의 경로(/api/events)에서 action으로 나눠 처리
 //   GET  ?ping=1           저장소 연결 여부
 //   GET  ?id=              안내장 + 참가자
+//   GET  ?ics=             일정 파일(.ics) — 아이폰 기본 캘린더에 추가
 //   POST {action, ...}     signup | login | logout | whoami | mine | me | claim  (로그인: session)
-//                          create(로그인 필수) | edit | settle | host | each | delete   (주최자: token 또는 만든 사람 session)
+//                          create(로그인 필수) | edit | settle | host | drop | each | delete   (주최자: token 또는 만든 사람 session)
 //                          rsvp | self                                       (참가자: pid + ptoken 또는 본인 session)
 import { createHash } from 'node:crypto';
 import {
   InputError, createEvent, editEvent, cleanSettlement, newParticipant, selfUpdate, hostUpdate, setSupplyEach, newId,
 } from '../js/ops.js';
-import { dataStamp } from '../js/calc.js';
+import { dataStamp, icsText } from '../js/calc.js';
 import { cleanSignup, normalizePhone } from '../js/auth.js';
 import { hashPassword, verifyPassword } from './_auth.js';
 import * as db from './_store.js';
@@ -285,6 +286,21 @@ async function handlePost(body) {
     return bundle(event);
   }
 
+  // 주최자: 참석자 명단에서 한 사람 삭제
+  if (action === 'drop') {
+    const event = await loadAsHost(id, token, user);
+    const p = await db.getParticipant(id, String(pid));
+    if (!p) throw new HttpError(404, '참가자 정보를 찾을 수 없어요.');
+    await db.deleteParticipant(id, p.id);
+    if (p.userPhone) {
+      // 로그인해서 응답한 사람의 내 알림장에서도 뺀다 (주최자 본인이면 주최 기록은 남기고 응답만 끊음)
+      const info = (await db.getUserEvents(p.userPhone))[id];
+      if (info && info.role === 'host') await db.addUserEvent(p.userPhone, id, { role: 'host', pid: null });
+      else if (info) await db.removeUserEvent(p.userPhone, id);
+    }
+    return bundle(event);
+  }
+
   if (action === 'rsvp') {
     const event = await load(id);
     const input = needData();
@@ -337,6 +353,16 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, storage: db.hasStorage });
     }
     if (!db.hasStorage) throw new HttpError(503, '서버 저장소가 연결되지 않았어요.');
+    if (req.method === 'GET' && req.query.ics) {
+      // 아이폰 Safari는 text/calendar 응답을 받으면 "캘린더에 추가" 화면을 바로 띄운다
+      const event = await load(req.query.ics);
+      const host = req.headers && req.headers.host;
+      const link = host ? `${req.headers['x-forwarded-proto'] || 'https'}://${host}/#/e/${event.id}` : '';
+      res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+      res.setHeader('Content-Disposition', `inline; filename="moim-${event.id}.ics"`);
+      res.setHeader('Cache-Control', CDN_CACHE);
+      return res.status(200).send(icsText(event, link));
+    }
     if (req.method === 'GET') {
       const body = await bundle(await load(req.query.id));
       res.setHeader('Cache-Control', CDN_CACHE);

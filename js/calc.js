@@ -170,6 +170,51 @@ export function googleCalendarUrl(e, link = '') {
   return `https://calendar.google.com/calendar/render?${params}`;
 }
 
+// 아이폰 기본 캘린더 등에서 여는 일정 파일(.ics) 내용. 한국 시간(UTC+9, 서머타임 없음)을 UTC로 바꿔 적는다
+export function icsText(e, link = '', now = new Date()) {
+  const utc = (date, time) => {
+    const [y, m, d] = date.split('-').map(Number);
+    const [h, min] = time.split(':').map(Number);
+    return new Date(Date.UTC(y, m - 1, d, h - 9, min)).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  };
+  const escText = (v) => String(v).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  // 한 줄은 75바이트까지 — 넘으면 다음 줄을 공백으로 시작해 이어 쓴다 (한글이 깨지지 않게 글자 단위로 자름)
+  const fold = (line) => {
+    const enc = new TextEncoder();
+    const out = [];
+    let cur = '';
+    for (const ch of line) {
+      if (enc.encode(cur + ch).length > (out.length ? 74 : 75)) {
+        out.push(cur);
+        cur = '';
+      }
+      cur += ch;
+    }
+    out.push(cur);
+    return out.join('\r\n ');
+  };
+  const end = eventEnd(e);
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//moim-alimjang//KO',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${e.id}@moim-alimjang`,
+    `DTSTAMP:${now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
+    `DTSTART:${utc(e.date, e.startTime)}`,
+    `DTEND:${utc(end.date, end.time)}`,
+    `SUMMARY:${escText(e.title)}`,
+    `LOCATION:${escText([e.placeName, e.address].filter(Boolean).join(' '))}`,
+    `DESCRIPTION:${escText([e.supplies && `준비물: ${e.supplies}`, e.notes, link && `모임 알림장: ${link}`].filter(Boolean).join('\n\n'))}`,
+    ...(link ? [`URL:${link}`] : []),
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ];
+  return `${lines.map(fold).join('\r\n')}\r\n`;
+}
+
 // 준비물: 쉼표·줄바꿈으로 나눈 항목
 export function supplyItems(e) {
   return [...new Set(String(e.supplies || '').split(/[,，\n]/).map((s) => s.trim()).filter(Boolean))];

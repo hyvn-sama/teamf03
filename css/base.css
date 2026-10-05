@@ -107,13 +107,16 @@ body[data-view='home'] .nav-link { visibility: hidden; }
 .section-title.muted::before { background: var(--gray); }
 
 /* 폼 */
-.field { display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: start; margin-bottom: 12px; }
+.field { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: start; margin-bottom: 12px; }
 .field > label { padding-top: 11px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .input, .select, .textarea {
   width: 100%; min-height: 44px; padding: 10px 12px; border: 1.5px solid var(--line-strong);
   border-radius: var(--radius-sm); background: #fff; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
 }
 .textarea { min-height: 76px; resize: vertical; }
+/* 아이폰 Safari의 날짜·시간 칸은 기본 모양이 최소 너비를 고집해 화면 밖으로 넘친다 → 기본 모양을 끄고 칸 너비에 맞춤 */
+.input[type='date'], .input[type='time'] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; text-align: left; }
+.input[type='date']::-webkit-date-and-time-value, .input[type='time']::-webkit-date-and-time-value { text-align: left; }
 .input:focus, .select:focus, .textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(232, 80, 30, 0.12); }
 .input.invalid { border-color: #d93a2b; background: #fff8f7; }
 .input-unit { position: relative; }
@@ -174,7 +177,7 @@ body[data-view='home'] .nav-link { visibility: hidden; }
 @media (max-width: 720px) {
   .container { padding-top: 20px; }
   .page-head h1 { font-size: 23px; }
-  .field { grid-template-columns: 1fr; gap: 6px; }
+  .field { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .field > label { padding-top: 0; }
   .hide-sm { display: none; }
   .card-pad { padding: 18px; }

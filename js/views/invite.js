@@ -1,15 +1,15 @@
-// 02 초대장 보기 (참석자 화면) + D-DAY 당일 모드
+// 02 초대장 보기 (참석자 화면) — 날짜와 상관없이 D-DAY 당일 모드 화면으로 보여준다
 import { api, getMode } from '../api.js';
 import { hostToken, addHosted, myself, setMyself, localSeen, setLocalSeen, session } from '../store.js';
 import { loginHref, confirmDelete } from '../access.js';
 import {
-  countRsvp, seenCount, amountFor, daysUntil, formatDate, formatTime, timeLeft, won, displayValue,
-  supplyStatus, lateList, changeSummary, josa, pendingChanges, latestChanges, googleCalendarUrl,
+  countRsvp, seenCount, amountFor, daysUntil, formatDate, formatTime, timeRange, timeLeft, won, displayValue,
+  supplyStatus, lateList, changeSummary, josa, pendingChanges, googleCalendarUrl, icsText,
 } from '../calc.js';
 import {
-  esc, nl2br, icon, toast, copyText, inviteUrl, shareInvite, mapUrl, errorView, RSVP_LABEL,
+  esc, nl2br, icon, toast, copyText, inviteUrl, shareInvite, mapUrl, icsUrl, downloadIcs, RSVP_LABEL,
 } from '../ui.js';
-import { inviteCard, ddayBadge, seenPill } from '../card.js';
+import { ddayBadge, seenPill } from '../card.js';
 
 // 참석자는 1분, 주최자는 15초마다 새로고침 (수백 명이 동시에 열어도 부담 없게)
 const POLL_HOST_MS = 15000;
@@ -67,7 +67,7 @@ function changeBanner(e, participants, changes) {
           <div class="change-row now"><span>변경된 ${esc(c.label)}</span><strong>${esc(displayValue(c.field, c.after))}</strong></div>`).join('')}
       </div>
       <div class="change-banner-foot">
-        <span class="hint">변경된 항목은 아래 안내장에 주황색으로 표시돼요</span>
+        <span class="hint">확인했어요를 누르면 이 안내가 닫혀요</span>
         <button class="btn sm primary" data-act="seen">확인했어요</button>
       </div>
     </section>`;
@@ -223,55 +223,47 @@ function lateBoard(ps) {
     </section>`;
 }
 
-function fullView(data, ctx) {
-  const { event: e, participants } = data;
-  const { me, isHost, pending, isNew } = ctx;
-  // 카드에 표시할 변경: 아직 확인 안 한 것, 주최자는 최근 수정분
-  const marks = pending.length ? pending : isHost ? latestChanges(e) : [];
-  const changed = Object.fromEntries(marks.map((c) => [c.field, c.before]));
-  const seen = marks.length ? seenCount(participants, e.changeVersion) : null;
-  const n = daysUntil(e.date);
+// 캘린더에 추가 — 구글 캘린더 / 아이폰 기본 캘린더(.ics)
+function calendarPanel(e) {
+  const ios = getMode() === 'local'
+    ? `<button class="btn" data-act="ics-local">${icon('calendar')}아이폰 캘린더</button>`
+    : `<a class="btn" href="${esc(icsUrl(e))}">${icon('calendar')}아이폰 캘린더</a>`;
   return `
-    ${isHost ? hostBar(e, isNew) : ''}
-    <a class="back-link" href="${isHost ? '#/my' : '#/'}">${icon('back')}${isHost ? '내 알림장으로' : '모임 알림장 홈'}</a>
-    <div class="page-head"><span class="step-num">02</span><div><h1>초대장 보기</h1></div></div>
-    <div class="invite-layout">
-      <div class="invite-main card">
-        ${changeBanner(e, participants, pending)}
-        ${inviteCard(e, { changed, seen, supply: supplyStatus(e, participants), actions: `<a class="btn block" href="${esc(googleCalendarUrl(e, inviteUrl(e.id)))}" target="_blank" rel="noopener">${icon('calendar')}구글 캘린더에 추가</a>` })}
+    <section class="card card-pad">
+      <h2 class="today-h">${icon('calendar')}캘린더에 추가</h2>
+      <p class="hint">${esc(formatDate(e.date))} ${esc(timeRange(e))}</p>
+      <div class="btn-row">
+        <a class="btn" href="${esc(googleCalendarUrl(e, inviteUrl(e.id)))}" target="_blank" rel="noopener">${icon('calendar')}구글 캘린더</a>
+        ${ios}
       </div>
-      <aside class="invite-side">
-        <section class="card side-card dday-card">
-          <p class="hint">${n < 0 ? '종료된 모임' : '모임까지'}</p>
-          <p class="dday-big serif">${n === 0 ? 'D-DAY' : n > 0 ? `D-${n}` : `${-n}일 전`}</p>
-          <p class="hint">${esc(formatDate(e.date, { year: false }))} ${esc(formatTime(e.startTime))}</p>
-          ${n === 0 ? `<a class="btn sm primary" href="#/e/${e.id}">당일 모드로 보기</a>` : ''}
-        </section>
-        ${rsvpPanel(ctx)}
-        ${settlePanel(e, me)}
-        ${attendancePanel(e, participants, isHost, me, ctx.whoOpen)}
-      </aside>
-    </div>
-    ${me ? '' : `<button class="btn primary rsvp-jump" data-act="jump-rsvp">참석 여부 응답하기</button>`}`;
+    </section>`;
 }
 
-function todayView(data, ctx) {
-  const { event: e } = data;
-  const left = timeLeft(e);
+// 초대장 화면은 날짜와 상관없이 당일 모드 화면 하나로 보여준다
+function dayView(data, ctx) {
+  const { event: e, participants } = data;
+  const { me, isHost, pending } = ctx;
+  const n = daysUntil(e.date);
+  const left = n === 0 ? timeLeft(e) : null;
+  const facts = [e.expectedCount && `${e.expectedCount}명 예정`, e.fee && `1인 ${won(e.fee)}`].filter(Boolean);
+  const changed = new Set(pending.map((c) => c.field));
   const supplies = (e.supplies || '').split(/[,，\n]/).map((s) => s.trim()).filter(Boolean);
   return `
-    ${ctx.isHost ? hostBar(e, ctx.isNew) : ''}
     <div class="today">
-      <a class="back-link" href="${ctx.isHost ? '#/my' : '#/'}">${icon('back')}${ctx.isHost ? '내 알림장으로' : '모임 알림장 홈'}</a>
+      ${isHost ? hostBar(e, ctx.isNew) : ''}
+      <a class="back-link" href="${isHost ? '#/my' : '#/'}">${icon('back')}${isHost ? '내 알림장으로' : '모임 알림장 홈'}</a>
       <section class="today-hero">
-        <div class="today-hero-top"><span class="live">당일 모드</span>${ddayBadge(e.date)}</div>
+        <div class="today-hero-top"><span class="live${n === 0 ? '' : ' off'}">${n === 0 ? '당일 모드' : n > 0 ? '모임 안내' : '종료된 모임'}</span>${ddayBadge(e.date)}</div>
         <h1>${esc(e.title)}</h1>
-        <p class="today-time">오늘 ${esc(formatTime(e.startTime))} <em>${left ? `${left} 남았어요` : '모임이 시작됐어요'}</em></p>
-        <p class="today-hint">오늘은 가는 길과 연락처를 먼저 보여드려요.</p>
+        ${n === 0
+          ? `<p class="today-time">오늘 ${esc(formatTime(e.startTime))} <em>${left ? `${left} 남았어요` : '모임이 시작됐어요'}</em></p>`
+          : `<p class="today-time">${esc(formatDate(e.date))}</p><p class="today-sub">${esc(timeRange(e))}</p>`}
+        ${facts.length ? `<p class="today-facts">${esc(facts.join(' · '))}</p>` : ''}
+        <p class="today-hint">${n === 0 ? '오늘은 가는 길과 연락처를 먼저 보여드려요.' : '가는 길·연락처·준비물을 한 화면에서 확인하세요.'}</p>
       </section>
-      ${ctx.isHost ? lateBoard(data.participants) : ''}
-      ${changeBanner(e, data.participants, ctx.pending)}
-      <section class="card card-pad">
+      ${isHost ? lateBoard(participants) : ''}
+      ${changeBanner(e, participants, pending)}
+      <section class="card card-pad${changed.has('placeName') || changed.has('address') ? ' changed' : ''}">
         <h2 class="today-h">${icon('pin')}오시는 길</h2>
         <p class="today-place">${esc(e.placeName)}</p>
         ${e.address ? `<p class="hint">${esc(e.address)}</p>` : ''}
@@ -280,6 +272,7 @@ function todayView(data, ctx) {
           <button class="btn dark" data-act="copy-address">주소 복사</button>
         </div>
       </section>
+      ${calendarPanel(e)}
       ${e.hostName || e.hostPhone ? `
         <section class="card card-pad">
           <h2 class="today-h">${icon('users')}주최자 연락처</h2>
@@ -290,18 +283,19 @@ function todayView(data, ctx) {
               <a class="btn" href="sms:${esc(e.hostPhone.replace(/[^\d+]/g, ''))}">${icon('message')}문자</a>
             </div>` : ''}
         </section>` : ''}
-      ${ctx.me && ctx.me.rsvp === 'yes' ? latePanel(ctx.me) : ''}
+      ${n === 0 && me && me.rsvp === 'yes' ? latePanel(me) : ''}
       ${supplies.length || e.notes ? `
-        <section class="card card-pad">
+        <section class="card card-pad${changed.has('supplies') || changed.has('notes') ? ' changed' : ''}">
           <h2 class="today-h">챙길 것 · 유의사항</h2>
           ${supplies.length ? `<div class="chips">${supplies.map((s) => `<span class="chip">${esc(s)}</span>`).join('')}</div>` : ''}
-          ${supplyStatus(e, data.participants).length ? `<button class="link-btn" data-act="open-supply">누가 무엇을 가져오는지 보기 ${icon('next')}</button>` : ''}
+          ${supplyStatus(e, participants).length ? `<button class="link-btn" data-act="open-supply">누가 무엇을 가져오는지 보기 ${icon('next')}</button>` : ''}
           ${e.notes ? `<p class="today-notes">${nl2br(e.notes)}</p>` : ''}
         </section>` : ''}
       ${rsvpPanel(ctx)}
-      ${settlePanel(e, ctx.me)}
-      <a class="btn block ghost" href="#/e/${e.id}?view=full">전체 안내장 보기</a>
-    </div>`;
+      ${settlePanel(e, me)}
+      ${attendancePanel(e, participants, isHost, me, ctx.whoOpen)}
+    </div>
+    ${me ? '' : '<button class="btn primary rsvp-jump" data-act="jump-rsvp">참석 여부 응답하기</button>'}`;
 }
 
 export async function render(root, { id, query, isStale }) {
@@ -309,7 +303,7 @@ export async function render(root, { id, query, isStale }) {
   if (query.k) addHosted(id, query.k);
   if (query.p && query.t) setMyself(id, query.p, query.t);
   if (query.k || query.p) {
-    history.replaceState(null, '', `#/e/${id}${query.view ? `?view=${encodeURIComponent(query.view)}` : ''}`);
+    history.replaceState(null, '', `#/e/${id}`);
     if (query.k) toast('이 기기에서도 주최자로 관리할 수 있어요');
     if (query.p) toast('내 응답을 이 기기에 연결했어요');
   }
@@ -342,11 +336,10 @@ export async function render(root, { id, query, isStale }) {
     const who = root.querySelector('details.who');
     if (who) whoOpen = who.open;
     const ctx = ctxOf();
-    const today = daysUntil(data.event.date) === 0 && query.view !== 'full';
     const typed = root.querySelector('#rsvp-name');
     const name = typed ? typed.value : '';
     const scroll = root.querySelector('.modal-body')?.scrollTop || 0;
-    let html = today ? todayView(data, ctx) : fullView(data, ctx);
+    let html = dayView(data, ctx);
     if (modal === 'seen') html += modalView(seenModal(data.event, data.participants, ctx.me));
     if (modal === 'supply') html += modalView(supplyModal(data.event, data.participants, ctx.me, isHost));
     root.innerHTML = html;
@@ -465,6 +458,7 @@ export async function render(root, { id, query, isStale }) {
     if (act === 'copy-link') copyText(inviteUrl(id), '링크를 복사했어요');
     if (act === 'share') shareInvite(e);
     if (act === 'copy-address') copyText(e.address || e.placeName, '주소를 복사했어요');
+    if (act === 'ics-local') downloadIcs(icsText(e, inviteUrl(id)), `moim-${id}.ics`);
     if (act === 'copy-account') copyText(e.settlement.accountNo.replace(/^\[[^\]]*\]\s*/, ''), '계좌번호를 복사했어요');
     if (act === 'paid' && me) run(() => api.self(id, auth, { paid: true }), '입금 완료로 표시했어요. 주최자 화면에도 반영돼요.');
     if (act === 'seen') {

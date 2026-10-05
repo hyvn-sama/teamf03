@@ -33,6 +33,7 @@ function row(p, settled) {
           ${p.rsvp === 'yes' && p.late ? `<span class="late-chip">${icon('clock')}${p.late.minutes}분 늦어요</span>` : ''}
           ${p.rsvp === 'yes' && p.brings && p.brings.length ? `<small>${esc(p.brings.join(', '))} 담당</small>` : ''}
         </span>
+        <button type="button" class="drop-btn" data-act="drop" aria-label="${esc(p.name)} 님 명단에서 삭제" title="명단에서 삭제">${icon('trash')}</button>
       </td>
       <td>
         <label class="sr-only" for="r-${esc(p.id)}">${esc(p.name)} 참석 여부</label>
@@ -128,6 +129,25 @@ export async function render(root, { id, isStale }) {
 
   // 휴대폰은 공유 시트(카카오톡 선택), PC는 문구+링크 복사
   const onClick = async (ev) => {
+    const drop = ev.target.closest('[data-act="drop"]');
+    if (drop) {
+      const p = data.participants.find((x) => x.id === drop.closest('tr').dataset.pid);
+      if (!p || busy) return;
+      const paid = p.settle === 'done' ? '\n이미 입금 완료로 표시된 사람이에요.' : '';
+      if (!window.confirm(`${p.name} 님을 참석자 명단에서 삭제할까요?${paid}\n삭제하면 되돌릴 수 없어요.`)) return;
+      busy = true;
+      gen++;
+      try {
+        data = await api.drop(id, token, p.id);
+        toast(`${p.name} 님을 명단에서 삭제했어요`);
+      } catch (err) {
+        toast(err.message, 'err');
+      } finally {
+        busy = false;
+        draw();
+      }
+      return;
+    }
     if (!ev.target.closest('[data-act="remind"]')) return;
     const text = settleReminder(data.event, data.participants);
     if (!text) return;

@@ -27,14 +27,8 @@
 .invite-card.is-preview .btn-row span { pointer-events: none; }
 
 /* 02 초대장 보기 */
-.invite-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
-.invite-main { overflow: hidden; }
-.invite-main > .invite-card { border: 0; border-radius: 0; }
-.invite-side { display: grid; gap: 14px; position: sticky; top: 76px; }
 .side-card { padding: 18px; }
 .side-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-.dday-card { text-align: center; border: 1.5px solid var(--brand); display: grid; gap: 4px; justify-items: center; }
-.dday-big { font-size: 46px; color: var(--brand); line-height: 1.1; }
 .serif { font-family: var(--serif); }
 .rsvp-card .input { margin: 10px 0 0; }
 .rsvp-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
@@ -52,7 +46,7 @@
 .lg.yes { background: var(--brand); } .lg.maybe { background: var(--blue); } .lg.no { background: var(--gray); }
 
 /* 누가 오나요? (참석자 이름) */
-.who { border-top: 1px solid var(--line); padding-top: 10px; margin-bottom: 12px; }
+details.who { border-top: 1px solid var(--line); padding-top: 10px; margin-bottom: 12px; }
 .who summary { display: flex; align-items: center; gap: 4px; cursor: pointer; list-style: none; font-size: 14px; font-weight: 700; color: var(--ink-2); }
 .who summary::-webkit-details-marker { display: none; }
 .who summary .ic { width: 14px; height: 14px; transition: transform 0.15s; }
@@ -78,6 +72,7 @@
 .change-row { display: grid; grid-template-columns: 96px 1fr; gap: 8px; color: var(--muted); }
 .change-row.now { color: var(--brand); padding-bottom: 6px; }
 .change-banner-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.change-banner-foot .btn { flex: none; white-space: nowrap; }
 
 /* 주최자 메뉴·생성 완료 */
 .created { padding: 18px; margin-bottom: 14px; display: grid; gap: 12px; border: 1.5px solid var(--green); }
@@ -101,8 +96,14 @@
 .today-hero .dday.today { background: var(--brand); font-family: var(--serif); font-size: 18px; padding: 4px 14px; border-radius: 8px; }
 .today-hero h1 { font-size: 28px; letter-spacing: -0.02em; line-height: 1.3; }
 .today-time { font-size: 24px; font-weight: 700; margin-top: 10px; }
-.today-time em { font-style: normal; font-size: 14px; color: #ff9f7a; margin-left: 6px; }
+.today-time em { font-style: normal; font-size: 14px; color: #ff9f7a; margin-left: 6px; white-space: nowrap; }
 .today-hint { color: rgba(255, 255, 255, 0.7); font-size: 13px; margin-top: 8px; }
+.today-sub { color: #ff9f7a; font-size: 15px; font-weight: 700; margin-top: 2px; }
+.today-facts { color: #fff; font-size: 14px; font-weight: 600; margin-top: 6px; }
+.live.off::before { display: none; }
+.today .host-bar, .today .created { margin-bottom: 0; }
+.today > .card.changed { border: 1.5px solid var(--brand); background: var(--brand-softer); }
+.today .change-banner { border: 1px solid #f7d9cb; border-radius: var(--radius); }
 .today-h { display: flex; align-items: center; gap: 8px; font-size: 17px; margin-bottom: 10px; }
 .today-h .ic { color: var(--brand); }
 .today-place { font-size: 18px; font-weight: 700; }
@@ -110,11 +111,6 @@
 .today .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .today-notes { background: var(--gray-soft); border-radius: 10px; padding: 12px 14px; font-size: 14px; }
 
-@media (max-width: 900px) {
-  .invite-layout { grid-template-columns: 1fr; }
-  .invite-side { position: static; }
-  .dday-card { display: none; }
-}
 @media (max-width: 520px) {
   .invite-card-head h2 { font-size: 22px; }
   .change-row { grid-template-columns: 80px 1fr; }

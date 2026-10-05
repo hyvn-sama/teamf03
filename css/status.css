@@ -32,6 +32,9 @@
 .rsvp-select.no { background-color: var(--gray-soft); color: var(--ink-2); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0h10L5 6z' fill='%23958b85'/%3E%3C/svg%3E"); }
 .rsvp-select option { background: #fff; color: var(--ink); }
 .status-table .pill { border: 0; }
+.status-table td:first-child .who { flex: 1; min-width: 0; }
+.drop-btn { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid #e7b8ae; border-radius: 8px; background: #fff; color: #b3321f; }
+.drop-btn:hover { background: #fbeae6; }
 .status-table .pill[disabled] { cursor: default; }
 
 @media (max-width: 720px) {
@@ -41,6 +44,8 @@
   .status-table th, .status-table td { padding: 9px 8px; }
   .status-table .pill { padding: 5px 8px; font-size: 12px; }
   .status-table .pill .ic { display: none; }
+  /* 선택지 중 긴 문구("정산 등록 후")에 맞춰 칸이 넓어져 표가 화면 밖으로 밀리지 않게 */
+  .settle-select { max-width: 104px; text-overflow: ellipsis; }
 }
 .who { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .who small { color: var(--muted); font-weight: 500; font-size: 12px; }
