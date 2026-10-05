@@ -250,7 +250,7 @@ function dayView(data, ctx) {
   return `
     <div class="today">
       ${isHost ? hostBar(e, ctx.isNew) : ''}
-      <a class="back-link" href="${isHost ? '#/my' : '#/'}">${icon('back')}${isHost ? '내 모임장으로' : '모모 홈'}</a>
+      <a class="back-link" href="#/my">${icon('back')}내 모임장으로</a>
       <section class="today-hero">
         <div class="today-hero-top"><span class="live${n === 0 ? '' : ' off'}">${n === 0 ? '당일 모드' : n > 0 ? '모임 안내' : '종료된 모임'}</span>${ddayBadge(e.date)}</div>
         <h1>${esc(e.title)}</h1>
