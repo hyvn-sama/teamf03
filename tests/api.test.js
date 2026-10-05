@@ -121,7 +121,7 @@ test('생성 → 조회 → 응답 → 수정 → 정산 → 입금 전체 흐�
   assert.equal(got.json.participants.length, 2);
 });
 
-test('잘못된 입력·없는 안내장', async () => {
+test('잘못된 입력·없는 모임장', async () => {
   assert.equal((await call('POST', { body: { action: 'create', session: await hostSession(), data: { ...input, title: '' } } })).status, 400);
   assert.equal((await call('GET', { query: { id: 'zzzzzzzz' } })).status, 404);
   assert.equal((await call('GET', { query: { id: '../etc' } })).status, 404);
@@ -160,7 +160,7 @@ test('잘못된 요청 본문은 400', async () => {
   assert.equal((await call('POST', { body: null })).status, 400);
 });
 
-test('안내장 조회는 CDN에 5초 캐시, 쓰기·ping·오류는 캐시 안 함', async () => {
+test('모임장 조회는 CDN에 5초 캐시, 쓰기·ping·오류는 캐시 안 함', async () => {
   const { json } = await call('POST', { body: { action: 'create', session: await hostSession(), data: input } });
   const got = await call('GET', { query: { id: json.event.id } });
   assert.match(got.headers['cache-control'], /s-maxage=5/);
@@ -301,7 +301,7 @@ test('리뷰 중요4: 계정 응답이 있는데 다른 기기의 익명 응답�
   assert.equal(mine.json.items[0].pid, p1.id);
 });
 
-test('명단에서 삭제: 주최자만, 로그인 참석자의 내 알림장에서도 빠짐, 주최자 본인 응답은 주최 기록 유지', async () => {
+test('명단에서 삭제: 주최자만, 로그인 참석자의 내 모임장에서도 빠짐, 주최자 본인 응답은 주최 기록 유지', async () => {
   const host = await signup('주최자'); const guest = await signup('손님');
   const { json } = await call('POST', { body: { action: 'create', session: host.session, data: input } });
   const id = json.event.id;
@@ -318,7 +318,7 @@ test('명단에서 삭제: 주최자만, 로그인 참석자의 내 알림장에
   assert.equal(dropped.status, 200);
   assert.deepEqual(dropped.json.participants.map((p) => p.name), ['익명', '주최자']);
   const mine = await call('POST', { body: { action: 'mine', session: guest.session } });
-  assert.ok(!mine.json.items.some((x) => x.event.id === id), '삭제된 참석자의 내 알림장에서 빠짐');
+  assert.ok(!mine.json.items.some((x) => x.event.id === id), '삭제된 참석자의 내 모임장에서 빠짐');
   assert.equal((await call('POST', { body: { action: 'drop', id, pid: gid, session: host.session } })).status, 404);
 
   // 관리 링크(토큰)로도 삭제, 주최자 본인 응답을 지워도 주최 모임으로 남음
@@ -342,7 +342,7 @@ test('아이폰 캘린더: ?ics= 로 일정 파일(.ics)을 내려줌', async ()
   assert.equal((await call('GET', { query: { ics: 'zzzzzzzz' } })).status, 404);
 });
 
-test('삭제: 주최자만, 안내장·응답·내 알림장 목록에서 모두 사라짐', async () => {
+test('삭제: 주최자만, 모임장·응답·내 모임장 목록에서 모두 사라짐', async () => {
   const host = await signup('주최자'); const guest = await signup('손님');
   const created = await call('POST', { body: { action: 'create', session: host.session, data: input } });
   const { id } = created.json.event;
@@ -359,7 +359,7 @@ test('삭제: 주최자만, 안내장·응답·내 알림장 목록에서 모두
   assert.equal((await call('POST', { body: { action: 'delete', id, session: host.session } })).status, 404);
   for (const s of [host.session, guest.session]) {
     const mine = await call('POST', { body: { action: 'mine', session: s } });
-    assert.ok(!mine.json.items.some((x) => x.event.id === id), '내 알림장에서도 빠짐');
+    assert.ok(!mine.json.items.some((x) => x.event.id === id), '내 모임장에서도 빠짐');
   }
 
   // 관리 링크(토큰)로도 삭제 가능

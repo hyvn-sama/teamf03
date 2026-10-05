@@ -1,4 +1,4 @@
-// 01 안내장 만들기  /  안내장 수정·재공유 (#/e/:id/edit) — 같은 폼을 쓴다
+// 01 모임장 만들기  /  모임장 수정·재공유 (#/e/:id/edit) — 같은 폼을 쓴다
 import { api } from '../api.js';
 import { addHosted, session } from '../store.js';
 import { hostAccess, noHostView, loginHref } from '../access.js';
@@ -99,7 +99,7 @@ export async function render(root, { id, query, edit }) {
   let people = [];
   let token = null;
 
-  // 안내장 만들기는 로그인 필수 (어느 기기에서든 내 알림장에서 관리하려고)
+  // 모임장 만들기는 로그인 필수 (어느 기기에서든 내 모임장에서 관리하려고)
   if (!edit && !session()) {
     location.hash = loginHref(`/create${query.from ? `?from=${query.from}` : ''}`);
     return;
@@ -108,7 +108,7 @@ export async function render(root, { id, query, edit }) {
   if (edit) {
     const access = await hostAccess(id);
     if (!access.ok) {
-      root.innerHTML = noHostView(id, '안내장은 만든 사람만 수정할 수 있어요.', `/e/${id}/edit`);
+      root.innerHTML = noHostView(id, '모임장은 만든 사람만 수정할 수 있어요.', `/e/${id}/edit`);
       return;
     }
     token = access.token;
@@ -119,8 +119,8 @@ export async function render(root, { id, query, edit }) {
 
   root.innerHTML = `
     ${edit
-      ? pageHead({ iconName: 'edit', title: '안내장 수정 · 재공유', sub: `${esc(original.title)} · 바뀐 항목은 주황색으로 표시되고, 공유하면 참석자에게 변경 안내가 떠요.`, back: { href: '#/my', label: '내 알림장으로' } })
-      : pageHead({ num: '01', title: '안내장 만들기', sub: '필수 항목만 채워도 안내장이 완성돼요. 입력하면 미리보기에 바로 반영돼요.' })}
+      ? pageHead({ iconName: 'edit', title: '모임장 수정 · 재공유', sub: `${esc(original.title)} · 바뀐 항목은 주황색으로 표시되고, 공유하면 참석자에게 변경 안내가 떠요.`, back: { href: '#/my', label: '내 모임장으로' } })
+      : pageHead({ num: '01', title: '모임장 만들기', sub: '필수 항목만 채워도 모임장이 완성돼요. 입력하면 미리보기에 바로 반영돼요.' })}
     <div class="create-layout">
       ${formHTML()}
       <aside class="create-side">
@@ -131,21 +131,21 @@ export async function render(root, { id, query, edit }) {
             <button class="btn primary block save-share" type="button" disabled>수정 저장하고 공유하기</button>
           </div>
           <div class="card card-pad reshare">
-            <h3>안내장 다시 공유하기</h3>
+            <h3>모임장 다시 공유하기</h3>
             <p class="hint">내용은 그대로 두고 링크만 다시 보내요.</p>
             <div class="link-box"><span>${esc(inviteUrl(id))}</span><button class="btn sm dark copy-link" type="button">링크 복사</button></div>
             <button class="btn block share-again" type="button">카톡으로 다시 공유</button>
           </div>` : `
           <p class="preview-label">PREVIEW</p>
           <div class="preview"></div>
-          <p class="hint">선택 항목은 비워두면 안내장에 나타나지 않아요.</p>`}
+          <p class="hint">선택 항목은 비워두면 모임장에 나타나지 않아요.</p>`}
       </aside>
     </div>`;
 
   const form = root.querySelector('form');
   const submit = form.querySelector('.submit');
   const errorEl = form.querySelector('.form-error');
-  submit.textContent = edit ? '수정 저장하고 공유하기' : '안내장 만들기';
+  submit.textContent = edit ? '수정 저장하고 공유하기' : '모임장 만들기';
 
   if (edit) {
     fillForm(form, original);

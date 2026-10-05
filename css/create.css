@@ -1,4 +1,4 @@
-/* 01 안내장 만들기 / 수정·재공유 */
+/* 01 모임장 만들기 / 수정·재공유 */
 .create-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
 .create-side { position: sticky; top: 76px; display: grid; gap: 14px; }
 .form-section { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; margin: 6px 0 14px; padding-top: 18px; border-top: 1px solid var(--line); }

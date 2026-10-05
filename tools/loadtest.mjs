@@ -1,7 +1,7 @@
-// 부하 테스트: 시연처럼 N명이 같은 안내장을 열고, 응답하고, 화면을 켜 둔 상황을 흉내 낸다.
+// 부하 테스트: 시연처럼 N명이 같은 모임장을 열고, 응답하고, 화면을 켜 둔 상황을 흉내 낸다.
 // 실행: MOIM_SESSION=<세션> node tools/loadtest.mjs https://teamf03.vercel.app 400 60
-//        (주소, 인원, 지속 초) — 테스트 안내장 1개와 참가자 N명이 실제 저장소에 생긴다 (120일 뒤 자동 삭제)
-//        안내장 만들기에 로그인이 필요해서, 테스트 계정으로 로그인한 브라우저의
+//        (주소, 인원, 지속 초) — 테스트 모임장 1개와 참가자 N명이 실제 저장소에 생긴다 (120일 뒤 자동 삭제)
+//        모임장 만들기에 로그인이 필요해서, 테스트 계정으로 로그인한 브라우저의
 //        개발자도구 → Application → Local Storage → moim.session 의 token 값을 MOIM_SESSION에 넣는다.
 const [base = 'https://teamf03.vercel.app', people = '400', seconds = '60'] = process.argv.slice(2);
 const N = Number(people);
@@ -53,10 +53,10 @@ const created = await req('POST', '/api/events', {
 });
 const id = created.event && created.event.id;
 if (!id) {
-  console.error('테스트 안내장을 만들지 못했어요.', created);
+  console.error('테스트 모임장을 만들지 못했어요.', created);
   process.exit(1);
 }
-console.log(`테스트 안내장 ${id} — ${N}명, ${seconds}초`);
+console.log(`테스트 모임장 ${id} — ${N}명, ${seconds}초`);
 
 const end = Date.now() + DURATION;
 async function guest(i) {

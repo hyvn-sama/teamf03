@@ -20,7 +20,7 @@ export function render(root, { query }) {
       <section class="login-wrap">
         <div class="card card-pad login-card">
           <h1>${signup ? '회원가입' : '로그인'}</h1>
-          <p class="hint">${signup ? '전화번호로 가입하면 어느 기기에서든 내 알림장을 볼 수 있어요.' : '안내장을 만들고 내 알림장을 보려면 로그인해주세요.'}</p>
+          <p class="hint">${signup ? '전화번호로 가입하면 어느 기기에서든 내 모임장을 볼 수 있어요.' : '모임장을 만들고 내 모임장을 보려면 로그인해주세요.'}</p>
           <div class="seg login-tabs" role="tablist">
             <button type="button" role="tab" data-tab="login" class="${signup ? '' : 'on'}" aria-selected="${!signup}">로그인</button>
             <button type="button" role="tab" data-tab="signup" class="${signup ? 'on' : ''}" aria-selected="${signup}">회원가입</button>
@@ -68,7 +68,7 @@ export function render(root, { query }) {
       // 로그인 전에 이 브라우저에서 만들거나 응답한 모임을 계정으로 옮김
       const moved = await api.claim().catch(() => null);
       const count = moved ? moved.hosted + moved.joined : 0;
-      toast(count ? `${res.user.name} 님, 이 기기의 모임 ${count}개를 내 알림장에 옮겼어요` : `${res.user.name} 님, 반가워요`);
+      toast(count ? `${res.user.name} 님, 이 기기의 모임 ${count}개를 내 모임장에 옮겼어요` : `${res.user.name} 님, 반가워요`);
       location.hash = `#${next}`;
     } catch (err) {
       errorEl.textContent = err.message;

@@ -1,17 +1,19 @@
 /* 공통 스타일 — 색·글꼴·버튼·카드·폼 (화면별 스타일은 css/{화면}.css) */
 :root {
-  --bg: #fdf8f5;
+  /* 모모 — 복숭아·코랄 톤 */
+  --bg: #fff7f3;
   --card: #ffffff;
-  --line: #f0e4dd;
-  --line-strong: #e6d6cc;
-  --ink: #2b2725;
-  --ink-2: #5b5450;
-  --muted: #958b85;
-  --brand: #e8501e;
-  --brand-dark: #c8410f;
-  --brand-2: #f4a27f;
-  --brand-soft: #fdeee7;
-  --brand-softer: #fff6f1;
+  --line: #f6e3db;
+  --line-strong: #efd3c8;
+  --ink: #3a2c28;
+  --ink-2: #66524c;
+  --muted: #a08d86;
+  --brand: #ef5b45;
+  --brand-dark: #d7432f;
+  --brand-2: #f8a690;
+  --brand-soft: #fdebe5;
+  --brand-softer: #fff5f1;
+  --leaf: #5fa35a;
   --blue: #5577c4;
   --blue-soft: #e8eefb;
   --gray: #a39d98;
@@ -21,11 +23,12 @@
   --dark: #2d2b2a;
   --radius: 16px;
   --radius-sm: 10px;
-  --shadow: 0 6px 24px rgba(120, 60, 30, 0.07);
-  --shadow-btn: 0 6px 16px rgba(232, 80, 30, 0.22);
+  --shadow: 0 6px 24px rgba(160, 70, 50, 0.07);
+  --shadow-btn: 0 6px 16px rgba(239, 91, 69, 0.25);
   --font: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   --serif: Georgia, 'Times New Roman', serif;
   --hand: 'Nanum Pen Script', var(--font);
+  --round: 'Jua', var(--font);
 }
 
 * { box-sizing: border-box; }
@@ -53,10 +56,8 @@ h1, h2, h3, p { margin: 0; }
 /* 상단바 */
 .topbar { position: sticky; top: 0; z-index: 20; background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
 .topbar-inner { max-width: 1080px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; }
-.logo-mark { display: inline-flex; gap: 3px; }
-.logo-mark i { width: 15px; height: 15px; border-radius: 4px; background: var(--brand); }
-.logo-mark i + i { background: var(--brand-2); }
+.logo { display: flex; align-items: center; gap: 6px; font-family: var(--round); font-size: 24px; line-height: 1; color: var(--brand); }
+.logo-mark { width: 28px; height: 28px; }
 .nav { display: flex; align-items: center; gap: 6px; }
 .nav-link { padding: 8px 12px; border-radius: 999px; color: var(--ink-2); font-size: 14px; }
 .nav-link.active { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
@@ -117,12 +118,12 @@ body[data-view='home'] .nav-link { visibility: hidden; }
 /* 아이폰 Safari의 날짜·시간 칸은 기본 모양이 최소 너비를 고집해 화면 밖으로 넘친다 → 기본 모양을 끄고 칸 너비에 맞춤 */
 .input[type='date'], .input[type='time'] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; text-align: left; }
 .input[type='date']::-webkit-date-and-time-value, .input[type='time']::-webkit-date-and-time-value { text-align: left; }
-.input:focus, .select:focus, .textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(232, 80, 30, 0.12); }
+.input:focus, .select:focus, .textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(239, 91, 69, 0.14); }
 .input.invalid { border-color: #d93a2b; background: #fff8f7; }
 .input-unit { position: relative; }
 .input-unit .input { padding-right: 36px; text-align: right; }
 .input-unit span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; }
-/* 삭제 버튼 (내 알림장 카드·초대장 주최자 메뉴) */
+/* 삭제 버튼 (내 모임장 카드·모임장 주최자 메뉴) */
 .btn.del-btn { color: #b3321f; border-color: #e7b8ae; }
 .btn.del-btn:hover { background: #fbeae6; }
 .btn-row > .del-btn { flex: none; }

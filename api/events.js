@@ -1,6 +1,6 @@
 // 서버 API — 하나의 경로(/api/events)에서 action으로 나눠 처리
 //   GET  ?ping=1           저장소 연결 여부
-//   GET  ?id=              안내장 + 참가자
+//   GET  ?id=              모임장 + 참가자
 //   GET  ?ics=             일정 파일(.ics) — 아이폰 기본 캘린더에 추가
 //   POST {action, ...}     signup | login | logout | whoami | mine | me | claim  (로그인: session)
 //                          create(로그인 필수) | edit | settle | host | drop | each | delete   (주최자: token 또는 만든 사람 session)
@@ -23,7 +23,7 @@ class HttpError extends Error {
   }
 }
 
-const notFound = () => new HttpError(404, '안내장을 찾을 수 없어요.');
+const notFound = () => new HttpError(404, '모임장을 찾을 수 없어요.');
 
 // 공개 응답에서 비밀값과 전화번호는 뺀다
 function publicEvent(e) {
@@ -60,7 +60,7 @@ async function loadAsHost(id, token, user) {
   return event;
 }
 
-// 주최자 전용 안내장 수정: 최신 값에 다시 적용하며 저장 (동시 수정 시 재시도)
+// 주최자 전용 모임장 수정: 최신 값에 다시 적용하며 저장 (동시 수정 시 재시도)
 async function updateAsHost(id, token, user, fn) {
   checkId(id);
   const updated = await db.updateEvent(id, (event) => {
@@ -86,7 +86,7 @@ async function bundle(event) {
   };
 }
 
-// 같은 안내장을 수백 명이 열어도 서버·Redis에는 5초에 한 번만 가도록 CDN이 대신 응답
+// 같은 모임장을 수백 명이 열어도 서버·Redis에는 5초에 한 번만 가도록 CDN이 대신 응답
 // (브라우저에는 s-maxage가 전달되지 않음. 방금 내가 바꾼 내용은 클라이언트가 캐시를 건너뛰어 받음)
 const CDN_CACHE = 'public, s-maxage=5, stale-while-revalidate=10';
 
@@ -272,7 +272,7 @@ async function handlePost(body) {
   if (action === 'delete') {
     const event = await loadAsHost(id, token, user);
     const participants = await db.getParticipants(id);
-    // 만든 사람·로그인해서 응답한 사람의 내 알림장에서도 뺀다
+    // 만든 사람·로그인해서 응답한 사람의 내 모임장에서도 뺀다
     const phones = new Set([event.ownerPhone, ...participants.map((p) => p.userPhone)].filter(Boolean));
     for (const phone of phones) await db.removeUserEvent(phone, id);
     await db.deleteEvent(id);
@@ -293,7 +293,7 @@ async function handlePost(body) {
     if (!p) throw new HttpError(404, '참가자 정보를 찾을 수 없어요.');
     await db.deleteParticipant(id, p.id);
     if (p.userPhone) {
-      // 로그인해서 응답한 사람의 내 알림장에서도 뺀다 (주최자 본인이면 주최 기록은 남기고 응답만 끊음)
+      // 로그인해서 응답한 사람의 내 모임장에서도 뺀다 (주최자 본인이면 주최 기록은 남기고 응답만 끊음)
       const info = (await db.getUserEvents(p.userPhone))[id];
       if (info && info.role === 'host') await db.addUserEvent(p.userPhone, id, { role: 'host', pid: null });
       else if (info) await db.removeUserEvent(p.userPhone, id);

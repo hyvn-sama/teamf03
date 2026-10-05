@@ -1,4 +1,4 @@
-/* 안내장 카드 (미리보기·초대장 공용) */
+/* 모임장 카드 (미리보기·모임장 공용) */
 .invite-card { background: #fff; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
 .invite-card-head { background: var(--brand); color: #fff; padding: 22px 22px 24px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .invite-card-head .eyebrow { font-size: 12px; opacity: 0.85; margin-bottom: 6px; }
@@ -26,7 +26,7 @@
 .invite-card-body > .btn, .invite-card-body > .btn-row { margin-top: 16px; }
 .invite-card.is-preview .btn-row span { pointer-events: none; }
 
-/* 02 초대장 보기 */
+/* 02 모임장 보기 */
 .side-card { padding: 18px; }
 .side-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
 .serif { font-family: var(--serif); }
@@ -77,7 +77,7 @@ details.who { border-top: 1px solid var(--line); padding-top: 10px; margin-botto
 /* 주최자 메뉴·생성 완료 */
 .created { padding: 18px; margin-bottom: 14px; display: grid; gap: 12px; border: 1.5px solid var(--green); }
 .created-title { display: flex; align-items: center; gap: 6px; color: var(--green); font-weight: 700; font-size: 17px; }
-.created .link-box { margin: 0; }
+.created .link-box { margin: 0; padding: 11px 14px; }
 .host-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 12px; margin-bottom: 18px; border-radius: 12px; background: var(--dark); }
 .host-bar-label { color: #fff; font-size: 13px; font-weight: 700; margin-right: auto; }
 .host-bar .btn { background: transparent; border-color: rgba(255, 255, 255, 0.35); color: #fff; }

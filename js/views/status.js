@@ -62,7 +62,7 @@ export async function render(root, { id, isStale }) {
     const mismatch = settleCountMismatch(ps, e.settlement);
     root.innerHTML = `
       <div class="status-top">
-        <div>${pageHead({ num: '03', title: '참석 현황', sub: `${esc(e.title)}${e.fee ? ` · 1인 ${won(e.fee)}` : ''}`, back: { href: `#/e/${id}`, label: `${e.title} 초대장으로` } })}</div>
+        <div>${pageHead({ num: '03', title: '참석 현황', sub: `${esc(e.title)}${e.fee ? ` · 1인 ${won(e.fee)}` : ''}`, back: { href: `#/e/${id}`, label: `${e.title} 모임장으로` } })}</div>
         <a class="btn primary" href="#/e/${id}/settle">${icon('money')}${e.settlement ? '정산 수정' : '정산 등록'}</a>
       </div>
       <div class="stats">
@@ -97,7 +97,7 @@ export async function render(root, { id, isStale }) {
         </div>` : `
         <div class="empty card">
           ${icon('users', 'big')}
-          <p>아직 응답한 사람이 없어요.<br><span class="hint">초대장 링크를 공유하면 응답이 여기에 자동으로 모여요.</span></p>
+          <p>아직 응답한 사람이 없어요.<br><span class="hint">모임장 링크를 공유하면 응답이 여기에 자동으로 모여요.</span></p>
           <a class="btn primary" href="#/e/${id}?new=1">${icon('share')}링크 공유하기</a>
         </div>`}`;
   };

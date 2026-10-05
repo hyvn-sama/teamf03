@@ -72,7 +72,7 @@ export const inviteUrl = (id) => `${location.origin}${location.pathname}#/e/${id
 
 export function shareMessage(e, prefix = '') {
   return [
-    `${prefix}[모임 알림장] ${e.title}`,
+    `${prefix}[모모] ${e.title}`,
     `📅 ${formatDate(e.date)} ${timeRange(e)}`,
     `📍 ${e.placeName}`,
     '',

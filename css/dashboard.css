@@ -1,4 +1,4 @@
-/* 내 알림장 */
+/* 내 모임장 */
 .dash-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 26px; }
 .dash-head h1 { font-size: 32px; letter-spacing: -0.02em; }
 .dash-head .sub { color: var(--muted); font-size: 14px; }
@@ -26,6 +26,11 @@
 .ev-meta .ic { color: var(--brand); }
 .mini-change { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--brand-soft); color: var(--brand); border-radius: 10px; padding: 8px 10px; font-size: 13px; font-weight: 700; }
 .mini-change > span:first-child { display: inline-flex; align-items: center; gap: 6px; }
+.mini-settle { display: flex; align-items: center; gap: 6px; background: var(--green-soft); color: var(--green); border-radius: 10px; padding: 8px 10px; font-size: 13px; font-weight: 700; }
+.mini-settle span { flex: 1; }
+.today-card { position: relative; }
+.today-card.has-alert { border-color: var(--brand); }
+.today-card .mini-settle { width: 100%; text-align: left; }
 .mini-change .seen-pill { display: inline-flex; align-items: center; gap: 4px; border: 1.5px solid var(--brand); border-radius: 999px; padding: 1px 10px; font-size: 12px; background: #fff; }
 .progress-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-top: 6px; }
 .progress-label b { color: var(--brand); }

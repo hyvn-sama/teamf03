@@ -1,4 +1,4 @@
-// 이 브라우저에만 남기는 정보: 내가 만든 안내장(수정 권한), 안내장별 "나"
+// 이 브라우저에만 남기는 정보: 내가 만든 모임장(수정 권한), 모임장별 "나"
 const HOSTED = 'moim.hosted';
 const meKey = (id) => `moim.me.${id}`;
 
@@ -31,7 +31,7 @@ export function removeHosted(id) {
 
 export const hostToken = (id) => (hostedList().find((h) => h.id === id) || {}).token || null;
 
-// 이 안내장에서의 "나": { pid, token } — token은 응답할 때 받은 본인 확인용 비밀값
+// 이 모임장에서의 "나": { pid, token } — token은 응답할 때 받은 본인 확인용 비밀값
 export function myself(id) {
   const v = read(meKey(id), null);
   if (!v) return null;

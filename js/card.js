@@ -1,4 +1,4 @@
-// 안내장 카드 — 만들기 미리보기와 초대장 보기가 같이 쓴다
+// 모임장 카드 — 만들기 미리보기와 모임장 보기가 같이 쓴다
 import { ddayLabel, daysUntil, formatDate, timeRange, won, displayValue } from './calc.js';
 import { esc, nl2br, icon, mapUrl } from './ui.js';
 
@@ -10,7 +10,7 @@ export function ddayBadge(date) {
 export const seenPill = ({ seen, total }) =>
   `<button type="button" class="seen-pill" data-act="open-seen" aria-label="변경 안내 확인 현황 보기">${icon('check')}확인 ${seen} / ${total}</button>`;
 
-// 준비물 · 누가 가져오나요? (초대장에서만, supply = supplyStatus 결과)
+// 준비물 · 누가 가져오나요? (모임장에서만, supply = supplyStatus 결과)
 function supplyBox(supply, cls = '', oldHtml = '') {
   const need = supply.filter((x) => x.needed).length;
   const label = (x) => (x.each ? '각자' : x.bringers.length ? `${x.bringers.length}명` : '담당 없음');
@@ -51,7 +51,7 @@ export function inviteCard(e, { changed = {}, preview = false, actions = '', see
     <article class="invite-card${preview ? ' is-preview' : ''}">
       <header class="invite-card-head">
         <div>
-          <p class="eyebrow">모임 안내장</p>
+          <p class="eyebrow">모임장</p>
           ${'title' in changed ? `<p class="old-title">${esc(changed.title)}</p>` : ''}
           <h2 class="${e.title ? '' : 'placeholder'}${mark('title')}">${esc(title)}</h2>
         </div>

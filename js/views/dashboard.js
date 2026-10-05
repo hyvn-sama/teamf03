@@ -1,22 +1,49 @@
-// 내 알림장 — 이 브라우저에서 만든 안내장 목록 (가까운 모임부터)
+// 내 모임장 — 이 브라우저에서 만든 모임장 목록 (가까운 모임부터)
 import { api } from '../api.js';
 import { session } from '../store.js';
 import { loginHref, confirmDelete } from '../access.js';
-import { daysUntil, countRsvp, seenCount, settleSummary, formatDate, formatTime, josa, changeSummary, lateList } from '../calc.js';
+import {
+  daysUntil, countRsvp, seenCount, settleSummary, formatDate, formatTime, josa, changeSummary, lateList, amountFor, won,
+} from '../calc.js';
 import { esc, nl2br, icon } from '../ui.js';
 import { ddayBadge } from '../card.js';
 
 const changedText = (e) => josa(changeSummary(e), '이', '가');
 
-function changeLine(e, ps) {
-  if (!e.changeVersion || !e.changes.length) return '';
+// 카드에 띄울 알림 — 참여한 모임은 "나" 기준(내가 아직 안 본 변경, 내가 낼 정산), 주최한 모임은 전체 기준
+function alertsOf({ event: e, participants: ps, role, pid }) {
+  const me = pid ? ps.find((p) => p.id === pid) : null;
+  if (role === 'host') {
+    const { seen, total } = seenCount(ps, e.changeVersion || 0);
+    const s = settleSummary(ps, e.settlement);
+    return {
+      changed: e.changeVersion > 0 && seen < total,
+      settle: e.settlement && s.unpaid ? `정산 등록됨 · 미입금 ${s.unpaid}명` : '',
+    };
+  }
+  return {
+    changed: Boolean(me && e.changeVersion > 0 && (me.seenVersion || 0) < e.changeVersion),
+    settle: e.settlement && me && me.rsvp === 'yes' && me.settle === 'unpaid'
+      ? `정산 금액이 등록되었어요 · 내 금액 ${won(amountFor(e.settlement, me.id))}` : '',
+  };
+}
+
+const cornerAlert = (a) => (a.changed || a.settle
+  ? `<span class="corner-alert" aria-label="${a.settle ? '정산 알림' : '변경 안내 미확인'}">!</span>` : '');
+
+// 주최자는 확인 현황까지, 참여자는 아직 확인하지 않았을 때만
+function changeLine(e, ps, role, a) {
+  if (!e.changeVersion || !e.changes.length || (role !== 'host' && !a.changed)) return '';
   const { seen, total } = seenCount(ps, e.changeVersion);
   return `
-    <div class="mini-change">
+    <a class="mini-change" href="#/e/${e.id}">
       <span>${icon('alert')}${esc(changedText(e))} 변경되었어요</span>
-      ${total ? `<span class="seen-pill">${icon('check')}확인 ${seen} / ${total}</span>` : ''}
-    </div>`;
+      ${role === 'host' ? (total ? `<span class="seen-pill">${icon('check')}확인 ${seen} / ${total}</span>` : '') : `<span class="seen-pill">확인하기 ${icon('next')}</span>`}
+    </a>`;
 }
+
+const settleLine = (e, a, role) => (a.settle ? `
+  <a class="mini-settle" href="${role === 'host' ? `#/e/${e.id}/status` : `#/e/${e.id}`}">${icon('money')}<span>${esc(a.settle)}</span>${icon('next')}</a>` : '');
 
 function progress(e, ps) {
   const c = countRsvp(ps);
@@ -38,10 +65,13 @@ const buttons = (e, role) => (role === 'host' ? `
 
 const roleTag = (role) => `<span class="role-tag ${role}">${role === 'host' ? '주최' : '참여'}</span>`;
 
-function todayCard({ event: e, participants: ps, role }) {
+function todayCard(item) {
+  const { event: e, participants: ps, role } = item;
   const c = countRsvp(ps);
+  const a = alertsOf(item);
   return `
-    <article class="today-card card">
+    <article class="today-card card${a.changed || a.settle ? ' has-alert' : ''}">
+      ${cornerAlert(a)}
       <p class="live">오늘의 모임 · 당일 모드 ${roleTag(role)}</p>
       <span class="dday-dark serif">D-<em>DAY</em></span>
       <h2>${esc(e.title)}</h2>
@@ -53,18 +83,21 @@ function todayCard({ event: e, participants: ps, role }) {
         ${lateList(ps).length ? `<li class="late-li">${icon('clock')}늦는다고 알린 사람 ${lateList(ps).length}명 · ${esc(lateList(ps).map((p) => `${p.name} ${p.late.minutes}분`).join(', '))}</li>` : ''}
       </ul>
       ${e.notes ? `<div class="notice"><p class="notice-title">${icon('alert')}유의사항</p><p>${nl2br(e.notes)}</p></div>` : ''}
-      ${changeLine(e, ps)}
+      ${changeLine(e, ps, role, a)}
+      ${settleLine(e, a, role)}
       ${buttons(e, role)}
     </article>`;
 }
 
-function upcomingCard({ event: e, participants: ps, role }, tag) {
-  const alert = e.changeVersion > 0 && seenCount(ps, e.changeVersion).seen < ps.length;
+function upcomingCard(item, tag) {
+  const { event: e, participants: ps, role } = item;
+  const a = alertsOf(item);
   return `
-    <article class="ev-card card${alert ? ' has-alert' : ''}">
-      ${alert ? '<span class="corner-alert" aria-label="변경 안내 미확인">!</span>' : ''}
+    <article class="ev-card card${a.changed || a.settle ? ' has-alert' : ''}">
+      ${cornerAlert(a)}
       <div class="ev-top">${ddayBadge(e.date)}<span class="hint">${esc(tag)} ${roleTag(role)}</span></div>
-      ${changeLine(e, ps)}
+      ${changeLine(e, ps, role, a)}
+      ${settleLine(e, a, role)}
       <h3>${esc(e.title)}</h3>
       <p class="ev-meta">${icon('calendar')}${esc(formatDate(e.date))} ${esc(formatTime(e.startTime))}</p>
       <p class="ev-meta">${icon('pin')}${esc(e.placeName)}</p>
@@ -73,13 +106,18 @@ function upcomingCard({ event: e, participants: ps, role }, tag) {
     </article>`;
 }
 
-function pastCard({ event: e, participants: ps, role }) {
+// 지난 모임은 변경 안내 대신 정산 알림만
+function pastCard(item) {
+  const { event: e, participants: ps, role } = item;
   const c = countRsvp(ps);
   const s = settleSummary(ps, e.settlement);
   const settleText = !e.settlement ? '정산 미등록' : s.unpaid ? `정산 ${s.unpaid}명 남음` : '정산 완료';
+  const a = { changed: false, settle: alertsOf(item).settle };
   return `
-    <article class="ev-card card past">
+    <article class="ev-card card past${a.settle ? ' has-alert' : ''}">
+      ${cornerAlert(a)}
       <div class="ev-top">${ddayBadge(e.date)}${roleTag(role)}</div>
+      ${settleLine(e, a, role)}
       <h3>${esc(e.title)}</h3>
       <p class="ev-meta">${icon('calendar')}${esc(formatDate(e.date))} ${esc(formatTime(e.startTime))}</p>
       <p class="ev-meta">${icon('pin')}${esc(e.placeName)}</p>
@@ -91,7 +129,7 @@ function pastCard({ event: e, participants: ps, role }) {
 export async function render(root, { isStale }) {
   if (!session()) {
     root.innerHTML = `
-      <div class="dash-head"><div><h1>내 알림장</h1></div></div>
+      <div class="dash-head"><div><h1>내 모임장</h1></div></div>
       <div class="empty card">
         ${icon('list', 'big')}
         <p>로그인하면 어느 기기에서든<br>내가 만든 모임과 응답한 모임을 볼 수 있어요.</p>
@@ -107,22 +145,25 @@ export async function render(root, { isStale }) {
   const today = items.filter((x) => daysUntil(x.event.date) === 0);
   const upcoming = items.filter((x) => daysUntil(x.event.date) > 0).sort((a, b) => a.event.date.localeCompare(b.event.date) || a.event.startTime.localeCompare(b.event.startTime));
   const past = items.filter((x) => daysUntil(x.event.date) < 0).sort((a, b) => b.event.date.localeCompare(a.event.date));
-  const changeCount = items.filter((x) => x.event.changeVersion > 0 && daysUntil(x.event.date) >= 0).length;
+  const alertCount = items.filter((x) => {
+    const a = alertsOf(x);
+    return a.settle || (a.changed && daysUntil(x.event.date) >= 0);
+  }).length;
   const tagOf = (x) => (x.event.fee ? `참가비 ${x.event.fee.toLocaleString()}원` : '');
 
   root.innerHTML = `
     <div class="dash-head">
       <div>
-        <h1>내 알림장</h1>
-        <p class="sub">가까운 모임부터 보여드려요. 진행 중 ${today.length + upcoming.length}개 · 종료 ${past.length}개${changeCount ? ` · <b>변경 안내 ${changeCount}건</b>` : ''}</p>
+        <h1>내 모임장</h1>
+        <p class="sub">가까운 모임부터 보여드려요. 진행 중 ${today.length + upcoming.length}개 · 종료 ${past.length}개${alertCount ? ` · <b>새 알림 ${alertCount}건</b>` : ''}</p>
       </div>
-      <a class="btn primary" href="#/create">${icon('plus')}새 안내장</a>
+      <a class="btn primary" href="#/create">${icon('plus')}새 모임장</a>
     </div>
     ${items.length === 0 ? `
       <div class="empty card">
         ${icon('list', 'big')}
-        <p>아직 만들거나 응답한 모임이 없어요.<br><span class="hint">안내장을 만들거나 받은 링크에서 응답하면 여기에 모여요.</span></p>
-        <a class="btn primary" href="#/create">${icon('mail')}첫 안내장 만들기</a>
+        <p>아직 만들거나 응답한 모임이 없어요.<br><span class="hint">모임장을 만들거나 받은 링크에서 응답하면 여기에 모여요.</span></p>
+        <a class="btn primary" href="#/create">${icon('mail')}첫 모임장 만들기</a>
       </div>` : ''}
     ${today.map(todayCard).join('')}
     ${upcoming.length ? `<h2 class="section-title">다가오는 모임</h2><div class="ev-grid">${upcoming.map((x) => upcomingCard(x, tagOf(x))).join('')}</div>` : ''}

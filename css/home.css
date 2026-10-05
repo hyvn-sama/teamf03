@@ -1,9 +1,33 @@
-/* 홈 */
-.hero { min-height: calc(100vh - 180px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px 0; }
-.hero-mark { width: 50px; height: 30px; border-radius: 9px; background: var(--brand); margin-bottom: 30px; }
-.hero-eyebrow { color: var(--brand); letter-spacing: 0.32em; font-size: 14px; margin-bottom: 18px; }
-.hero-title { font-family: var(--hand); font-weight: 400; font-size: clamp(64px, 13vw, 128px); line-height: 1.05; color: var(--ink); }
-.hero-title span { display: block; color: var(--brand); font-size: 0.92em; transform: rotate(-2deg); }
-.hero-desc { color: var(--ink-2); margin: 26px 0 34px; font-size: 15px; }
-.hero-cta { min-height: 58px; padding: 0 34px; font-size: 18px; border-radius: 12px; }
+/* 홈 — 모모: 모두의 모임 (복숭아·코랄 톤, 왼쪽 글 + 오른쪽 일러스트) */
+.hero { position: relative; min-height: calc(100vh - 180px); display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); align-items: center; gap: 24px; padding: 10px 0; }
+/* 화면 모서리의 복숭아빛 동그라미 */
+body[data-view='home'] {
+  background:
+    radial-gradient(circle at 0 0, #fde3d9 0 170px, transparent 171px),
+    radial-gradient(circle at 0 100%, #fde7de 0 230px, transparent 231px),
+    radial-gradient(circle at 100% 100%, #fff0ea 0 160px, transparent 161px),
+    var(--bg) fixed;
+}
+.hero-text { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.hero-eyebrow { color: var(--brand); letter-spacing: 0.42em; font-size: 18px; margin-bottom: 8px; padding-left: 0.42em; }
+.hero-title { display: flex; flex-direction: column; align-items: center; font-weight: 400; }
+.momo-word { position: relative; font-family: var(--round); font-size: clamp(88px, 12vw, 132px); line-height: 1.05; color: var(--brand); text-shadow: 0 6px 18px rgba(239, 91, 69, 0.18); }
+.momo-leaf { position: absolute; width: 0.4em; height: 0.24em; left: 0.2em; top: -0.12em; transform: rotate(-18deg); }
+.hero-sub { font-size: clamp(28px, 3.4vw, 36px); font-weight: 800; color: #5b4038; letter-spacing: -0.02em; margin-top: 10px; }
+.hero-desc { color: var(--ink-2); margin: 22px 0 32px; font-size: 15px; }
+.hero-cta { min-height: 60px; padding: 0 38px; font-size: 18px; border-radius: 14px; border: 0; background: linear-gradient(135deg, #f37a5f, var(--brand)); }
+.hero-cta:hover { background: linear-gradient(135deg, #ee6a50, var(--brand-dark)); }
 .hero-cta .ic { width: 22px; height: 22px; }
+
+/* 일러스트: 보내주신 콘셉트 이미지에서 사람들이 모인 부분만 잘라 보여준다 */
+.hero-art { position: relative; aspect-ratio: 449 / 538; overflow: hidden; border-radius: 28px;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 16%); mask-image: linear-gradient(to right, transparent, #000 16%); }
+/* 원본 881×586 중 x 432~881, y 48~586 영역 */
+.hero-art img { position: absolute; width: 196.21%; left: -96.21%; top: -8.92%; max-width: none; }
+.hero-art::after { content: ''; position: absolute; inset: auto 0 0; height: 18%; background: linear-gradient(transparent, var(--bg)); }
+
+@media (max-width: 820px) {
+  .hero { grid-template-columns: 1fr; min-height: 0; gap: 8px; padding-top: 0; }
+  .hero-art { width: min(100%, 380px); justify-self: center; -webkit-mask-image: none; mask-image: none; }
+  .hero-desc { margin: 18px 0 26px; }
+}

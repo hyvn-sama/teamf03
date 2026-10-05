@@ -165,7 +165,7 @@ export function googleCalendarUrl(e, link = '') {
     dates: `${stamp(e.date, e.startTime)}/${stamp(end.date, end.time)}`,
     ctz: 'Asia/Seoul',
     location: [e.placeName, e.address].filter(Boolean).join(' '),
-    details: [e.supplies && `준비물: ${e.supplies}`, e.notes, link && `모임 알림장: ${link}`].filter(Boolean).join('\n\n'),
+    details: [e.supplies && `준비물: ${e.supplies}`, e.notes, link && `모모: ${link}`].filter(Boolean).join('\n\n'),
   });
   return `https://calendar.google.com/calendar/render?${params}`;
 }
@@ -197,17 +197,17 @@ export function icsText(e, link = '', now = new Date()) {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//moim-alimjang//KO',
+    'PRODID:-//momo//KO',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:${e.id}@moim-alimjang`,
+    `UID:${e.id}@momo`,
     `DTSTAMP:${now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
     `DTSTART:${utc(e.date, e.startTime)}`,
     `DTEND:${utc(end.date, end.time)}`,
     `SUMMARY:${escText(e.title)}`,
     `LOCATION:${escText([e.placeName, e.address].filter(Boolean).join(' '))}`,
-    `DESCRIPTION:${escText([e.supplies && `준비물: ${e.supplies}`, e.notes, link && `모임 알림장: ${link}`].filter(Boolean).join('\n\n'))}`,
+    `DESCRIPTION:${escText([e.supplies && `준비물: ${e.supplies}`, e.notes, link && `모모: ${link}`].filter(Boolean).join('\n\n'))}`,
     ...(link ? [`URL:${link}`] : []),
     'END:VEVENT',
     'END:VCALENDAR',

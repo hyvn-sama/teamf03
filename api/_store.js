@@ -27,7 +27,7 @@ const CAS_HASH = `if redis.call('HGET', KEYS[1], ARGV[1]) == ARGV[2] then
 
 export class ConflictError extends Error {}
 
-// 안내장은 문서 하나, 참가자는 해시(참가자 1명 = 필드 1개)로 따로 저장
+// 모임장은 문서 하나, 참가자는 해시(참가자 1명 = 필드 1개)로 따로 저장
 const eventKey = (id) => `event:${id}`;
 const peopleKey = (id) => `event:${id}:p`;
 
@@ -133,7 +133,7 @@ export async function getParticipant(id, pid) {
 
 export const deleteParticipant = (id, pid) => cmd('HDEL', peopleKey(id), pid);
 
-// 안내장 삭제: 안내장 문서와 참가자 해시를 함께 지운다
+// 모임장 삭제: 모임장 문서와 참가자 해시를 함께 지운다
 export async function deleteEvent(id) {
   await cmd('DEL', eventKey(id));
   await cmd('DEL', peopleKey(id));

@@ -112,7 +112,7 @@ function localCall(action, { id, token, pid, ptoken, session: sess, data = {}, .
   const needUser = () => user || fail('로그인이 필요해요.', 401);
   // 만료·로그아웃된 세션은 익명으로 처리하지 않고 401 (서버와 같은 규칙)
   if (sess && !user && !['signup', 'login', 'logout'].includes(action)) fail('로그인이 만료됐어요. 다시 로그인해주세요.', 401);
-  const need = () => db.events[id] || fail('안내장을 찾을 수 없어요.', 404);
+  const need = () => db.events[id] || fail('모임장을 찾을 수 없어요.', 404);
   const canHost = (e) => e.editTokenHash === token || Boolean(user && e.ownerPhone === user.phone);
   const needHost = () => {
     const e = need();

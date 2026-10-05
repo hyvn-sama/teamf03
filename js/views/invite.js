@@ -1,4 +1,4 @@
-// 02 초대장 보기 (참석자 화면) — 날짜와 상관없이 D-DAY 당일 모드 화면으로 보여준다
+// 02 모임장 보기 (참석자 화면) — 날짜와 상관없이 D-DAY 당일 모드 화면으로 보여준다
 import { api, getMode } from '../api.js';
 import { hostToken, addHosted, myself, setMyself, localSeen, setLocalSeen, session } from '../store.js';
 import { loginHref, confirmDelete } from '../access.js';
@@ -28,10 +28,10 @@ function hostBar(e, isNew) {
     ${isNew ? `
       <div class="card created">
         <div>
-          <p class="created-title">${icon('checkCircle')}안내장이 만들어졌어요!</p>
+          <p class="created-title">${icon('checkCircle')}모임장이 만들어졌어요!</p>
           <p class="hint">아래 링크를 카톡방에 공유하면 참석자가 바로 응답할 수 있어요.</p>
         </div>
-        <div class="link-box"><span>${esc(inviteUrl(e.id))}</span><button class="btn sm dark" data-act="copy-link">링크 복사</button></div>
+        <div class="link-box"><span>${esc(inviteUrl(e.id))}</span></div>
         <button class="btn primary" data-act="share">${icon('share')}카톡으로 공유하기</button>
         ${localWarning()}
         <div class="admin-box">
@@ -58,7 +58,7 @@ function changeBanner(e, participants, changes) {
     <section class="change-banner">
       <div class="change-banner-head">
         <span class="alert-dot">!</span>
-        <strong>안내장 내용이 변경되었어요</strong>
+        <strong>모임장 내용이 변경되었어요</strong>
         ${total ? seenPill({ seen, total }) : ''}
       </div>
       <div class="change-rows">
@@ -84,10 +84,10 @@ function rsvpPanel({ me, auth, eventId }) {
         ? `<p class="hint"><b>${esc(me.name)}</b> 님은 <b>${RSVP_LABEL[me.rsvp]}</b>으로 응답했어요. 바꾸려면 다시 눌러주세요.</p>
            ${s ? '<p class="hint my-link">로그인한 계정에 저장돼서 다른 기기에서도 이어서 할 수 있어요.</p>'
               : auth && auth.token ? '<p class="hint my-link">다른 기기에서 이어서 하려면 <button class="link-btn" data-act="copy-me">내 응답 링크 복사</button></p>' : ''}`
-        : `<p class="hint">${s ? `<b>${esc(s.user.name)}</b> 님 계정으로 응답해요. 응답하면 내 알림장에 저장돼요.` : '아직 응답하지 않았어요. 이름을 적고 선택해주세요.'}</p>
+        : `<p class="hint">${s ? `<b>${esc(s.user.name)}</b> 님 계정으로 응답해요. 응답하면 내 모임장에 저장돼요.` : '아직 응답하지 않았어요. 이름을 적고 선택해주세요.'}</p>
            <label class="sr-only" for="rsvp-name">이름</label>
            <input class="input" id="rsvp-name" maxlength="20" placeholder="이름 (예: 송다은)" autocomplete="name" value="${s ? esc(s.user.name) : ''}">
-           ${s ? '' : `<p class="hint my-link"><a class="link-btn" href="${loginHref(`/e/${eventId}`)}">로그인하면 내 알림장에 저장돼요</a></p>`}`}
+           ${s ? '' : `<p class="hint my-link"><a class="link-btn" href="${loginHref(`/e/${eventId}`)}">로그인하면 내 모임장에 저장돼요</a></p>`}`}
       <div class="rsvp-buttons">${buttons}</div>
     </section>`;
 }
@@ -165,7 +165,7 @@ function supplyModal(e, ps, me, isHost) {
   return {
     title: '준비물 · 누가 가져오나요?',
     body: `
-      <p class="hint">안내장의 준비물을 쉼표(,) 기준으로 나눴어요. 모두 챙기는 건 <b>각자</b>${isHost ? '를 켜고' : '로 표시돼 있고'}, 한 명만 가져오면 되는 건 담당을 정해주세요.</p>
+      <p class="hint">모임장의 준비물을 쉼표(,) 기준으로 나눴어요. 모두 챙기는 건 <b>각자</b>${isHost ? '를 켜고' : '로 표시돼 있고'}, 한 명만 가져오면 되는 건 담당을 정해주세요.</p>
       <ul class="supply-list">
         ${list.map((x) => `
           <li class="supply-item${x.needed ? ' need' : ''}">
@@ -239,7 +239,7 @@ function calendarPanel(e) {
     </section>`;
 }
 
-// 초대장 화면은 날짜와 상관없이 당일 모드 화면 하나로 보여준다
+// 모임장 화면은 날짜와 상관없이 당일 모드 화면 하나로 보여준다
 function dayView(data, ctx) {
   const { event: e, participants } = data;
   const { me, isHost, pending } = ctx;
@@ -251,7 +251,7 @@ function dayView(data, ctx) {
   return `
     <div class="today">
       ${isHost ? hostBar(e, ctx.isNew) : ''}
-      <a class="back-link" href="${isHost ? '#/my' : '#/'}">${icon('back')}${isHost ? '내 알림장으로' : '모임 알림장 홈'}</a>
+      <a class="back-link" href="${isHost ? '#/my' : '#/'}">${icon('back')}${isHost ? '내 모임장으로' : '모모 홈'}</a>
       <section class="today-hero">
         <div class="today-hero-top"><span class="live${n === 0 ? '' : ' off'}">${n === 0 ? '당일 모드' : n > 0 ? '모임 안내' : '종료된 모임'}</span>${ddayBadge(e.date)}</div>
         <h1>${esc(e.title)}</h1>
@@ -308,7 +308,7 @@ export async function render(root, { id, query, isStale }) {
     if (query.p) toast('내 응답을 이 기기에 연결했어요');
   }
 
-  // 로그인했으면 이 안내장에서 내 권한(주최자인지, 이미 응답했는지)을 계정 기준으로 확인
+  // 로그인했으면 이 모임장에서 내 권한(주최자인지, 이미 응답했는지)을 계정 기준으로 확인
   let account = { isHost: false, participant: null };
   if (session()) account = await api.me(id).catch(() => account);
   // 계정에 연결된 응답이 "나" — 같은 기기에서 계정을 바꿔도 앞사람 응답이 내 것으로 보이지 않게
@@ -347,7 +347,7 @@ export async function render(root, { id, query, isStale }) {
     if (modal) root.querySelector('.modal-body').scrollTop = scroll;
     const again = root.querySelector('#rsvp-name');
     if (again && name) again.value = name;
-    document.title = `${data.event.title} — 모임 알림장`;
+    document.title = `${data.event.title} — 모모`;
   };
 
   const run = async (fn, done) => {
@@ -455,7 +455,6 @@ export async function render(root, { id, query, isStale }) {
       card.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setTimeout(() => card.querySelector('input')?.focus({ preventScroll: true }), 400);
     }
-    if (act === 'copy-link') copyText(inviteUrl(id), '링크를 복사했어요');
     if (act === 'share') shareInvite(e);
     if (act === 'copy-address') copyText(e.address || e.placeName, '주소를 복사했어요');
     if (act === 'ics-local') downloadIcs(icsText(e, inviteUrl(id)), `moim-${id}.ics`);
