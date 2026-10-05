@@ -89,10 +89,11 @@ details.who { border-top: 1px solid var(--line); padding-top: 10px; margin-botto
 .today { max-width: 640px; margin: 0 auto; display: grid; gap: 14px; }
 .today .back-link { margin-bottom: 0; }
 .today-hero { background: var(--dark); color: #fff; border-radius: 20px; padding: 24px; }
-.today-hero-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.today-title { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
 .live { color: #ff9f7a; font-size: 13px; letter-spacing: 0.15em; display: inline-flex; align-items: center; gap: 6px; }
 .live::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--brand); animation: blink 1.4s infinite; }
-.today-hero .dday.today { margin-left: auto; }
+/* D-DAY 배지(.dday.today)가 화면 틀 .today의 가운데 정렬·grid를 물려받지 않게 */
+.today-hero .dday { flex: none; display: inline-flex; margin: 0; max-width: none; }
 .today-hero .dday.today { background: var(--brand); font-family: var(--serif); font-size: 18px; padding: 4px 14px; border-radius: 8px; }
 .today-hero h1 { font-size: 28px; letter-spacing: -0.02em; line-height: 1.3; }
 .today-time { font-size: 24px; font-weight: 700; margin-top: 10px; }
@@ -100,7 +101,6 @@ details.who { border-top: 1px solid var(--line); padding-top: 10px; margin-botto
 .today-hint { color: rgba(255, 255, 255, 0.7); font-size: 13px; margin-top: 8px; }
 .today-sub { color: #ff9f7a; font-size: 15px; font-weight: 700; margin-top: 2px; }
 .today-facts { color: #fff; font-size: 14px; font-weight: 600; margin-top: 6px; }
-.live.off::before { display: none; }
 .today .host-bar, .today .created { margin-bottom: 0; }
 .today > .card.changed { border: 1.5px solid var(--brand); background: var(--brand-softer); }
 .today .change-banner { border: 1px solid #f7d9cb; border-radius: var(--radius); }
