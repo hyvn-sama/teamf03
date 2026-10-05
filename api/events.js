@@ -1,7 +1,7 @@
 // 서버 API — 하나의 경로(/api/events)에서 action으로 나눠 처리
 //   GET  ?ping=1           저장소 연결 여부
 //   GET  ?id=              모임장 + 참가자
-//   GET  ?ics=             일정 파일(.ics) — 아이폰 기본 캘린더에 추가
+//   GET  ?ics=[&dl=1]      일정 파일(.ics) — 기본 캘린더에 추가 (dl=1: 파일로 내려받기)
 //   POST {action, ...}     signup | login | logout | whoami | mine | me | claim  (로그인: session)
 //                          create(로그인 필수) | edit | settle | host | drop | each | delete   (주최자: token 또는 만든 사람 session)
 //                          rsvp | self                                       (참가자: pid + ptoken 또는 본인 session)
@@ -354,12 +354,13 @@ export default async function handler(req, res) {
     }
     if (!db.hasStorage) throw new HttpError(503, '서버 저장소가 연결되지 않았어요.');
     if (req.method === 'GET' && req.query.ics) {
-      // 아이폰 Safari는 text/calendar 응답을 받으면 "캘린더에 추가" 화면을 바로 띄운다
+      // 아이폰 Safari는 text/calendar 응답을 받으면 "캘린더에 추가" 화면을 바로 띄운다.
+      // dl=1(안드로이드·PC)은 파일로 내려받아, 열면 기본 캘린더 앱이 일정을 가져온다
       const event = await load(req.query.ics);
       const host = req.headers && req.headers.host;
       const link = host ? `${req.headers['x-forwarded-proto'] || 'https'}://${host}/#/e/${event.id}` : '';
       res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
-      res.setHeader('Content-Disposition', `inline; filename="moim-${event.id}.ics"`);
+      res.setHeader('Content-Disposition', `${req.query.dl ? 'attachment' : 'inline'}; filename="momo-${event.id}.ics"`);
       res.setHeader('Cache-Control', CDN_CACHE);
       return res.status(200).send(icsText(event, link));
     }

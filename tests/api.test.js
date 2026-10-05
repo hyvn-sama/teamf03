@@ -339,6 +339,9 @@ test('아이폰 캘린더: ?ics= 로 일정 파일(.ics)을 내려줌', async ()
   assert.match(r.text, /DTSTART:20261031T080000Z/);
   assert.match(r.text, /DTEND:20261031T103000Z/);
   assert.match(r.text, new RegExp(`https://moim.test/#/e/${json.event.id}`));
+  assert.match(r.headers['content-disposition'], /^inline/);
+  const dl = await call('GET', { query: { ics: json.event.id, dl: '1' } });
+  assert.match(dl.headers['content-disposition'], /^attachment; filename="momo-/);
   assert.equal((await call('GET', { query: { ics: 'zzzzzzzz' } })).status, 404);
 });
 

@@ -4,10 +4,10 @@ import { hostToken, addHosted, myself, setMyself, localSeen, setLocalSeen, sessi
 import { loginHref, confirmDelete } from '../access.js';
 import {
   countRsvp, seenCount, amountFor, daysUntil, formatDate, formatTime, timeRange, timeLeft, won, displayValue,
-  supplyStatus, lateList, changeSummary, josa, pendingChanges, googleCalendarUrl, icsText,
+  supplyStatus, lateList, changeSummary, josa, pendingChanges, icsText,
 } from '../calc.js';
 import {
-  esc, nl2br, icon, toast, copyText, inviteUrl, shareInvite, mapUrl, icsUrl, downloadIcs, RSVP_LABEL,
+  esc, nl2br, icon, toast, copyText, inviteUrl, shareInvite, mapUrl, calendarLink, downloadIcs, RSVP_LABEL,
 } from '../ui.js';
 import { ddayBadge, seenPill } from '../card.js';
 
@@ -223,18 +223,17 @@ function lateBoard(ps) {
     </section>`;
 }
 
-// 캘린더에 추가 — 구글 캘린더 / 아이폰 기본 캘린더(.ics)
+// 캘린더에 추가 — 아이폰·삼성폰·PC 모두 그 기기의 기본 캘린더로
 function calendarPanel(e) {
-  const ios = getMode() === 'local'
-    ? `<button class="btn" data-act="ics-local">${icon('calendar')}아이폰 캘린더</button>`
-    : `<a class="btn" href="${esc(icsUrl(e))}">${icon('calendar')}아이폰 캘린더</a>`;
+  const label = `${icon('calendar')}내 캘린더에 추가`;
   return `
     <section class="card card-pad">
       <h2 class="today-h">${icon('calendar')}캘린더에 추가</h2>
       <p class="hint">${esc(formatDate(e.date))} ${esc(timeRange(e))}</p>
       <div class="btn-row">
-        <a class="btn" href="${esc(googleCalendarUrl(e, inviteUrl(e.id)))}" target="_blank" rel="noopener">${icon('calendar')}구글 캘린더</a>
-        ${ios}
+        ${getMode() === 'local'
+          ? `<button class="btn" data-act="ics-local">${label}</button>`
+          : `<a class="btn" href="${esc(calendarLink(e))}">${label}</a>`}
       </div>
     </section>`;
 }

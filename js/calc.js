@@ -155,28 +155,37 @@ function eventEnd(e) {
   return { date: total >= 1440 ? addDays(e.date, 1) : e.date, time };
 }
 
-// 구글 캘린더 "일정 추가" 화면으로 바로 연결 (카톡 안 브라우저에서도 파일 다운로드 없이 동작)
-export function googleCalendarUrl(e, link = '') {
-  const stamp = (date, time) => `${date.replace(/-/g, '')}T${time.replace(':', '')}00`;
-  const end = eventEnd(e);
-  const params = new URLSearchParams({
-    action: 'TEMPLATE',
-    text: e.title,
-    dates: `${stamp(e.date, e.startTime)}/${stamp(end.date, end.time)}`,
-    ctz: 'Asia/Seoul',
-    location: [e.placeName, e.address].filter(Boolean).join(' '),
-    details: [e.supplies && `준비물: ${e.supplies}`, e.notes, link && `모모: ${link}`].filter(Boolean).join('\n\n'),
-  });
-  return `https://calendar.google.com/calendar/render?${params}`;
+// 한국 시간(UTC+9, 서머타임 없음) 날짜·시각 → 실제 시각(ms)
+function kstMs(date, time) {
+  const [y, m, d] = date.split('-').map(Number);
+  const [h, min] = time.split(':').map(Number);
+  return Date.UTC(y, m - 1, d, h - 9, min);
 }
 
-// 아이폰 기본 캘린더 등에서 여는 일정 파일(.ics) 내용. 한국 시간(UTC+9, 서머타임 없음)을 UTC로 바꿔 적는다
+const calendarNote = (e, link) => [e.supplies && `준비물: ${e.supplies}`, e.notes, link && `모모: ${link}`].filter(Boolean).join('\n\n');
+
+// 안드로이드 기본 캘린더(삼성 캘린더 등)의 "일정 추가" 화면을 바로 여는 주소.
+// 열 수 있는 캘린더 앱이 없으면 브라우저가 fallback(일정 파일 내려받기)으로 이동한다
+export function androidCalendarIntent(e, link = '', fallback = '') {
+  const end = eventEnd(e);
+  const s = (v) => encodeURIComponent(v);
+  return [
+    'intent:#Intent',
+    'action=android.intent.action.INSERT',
+    'type=vnd.android.cursor.item/event',
+    `S.title=${s(e.title)}`,
+    `S.eventLocation=${s([e.placeName, e.address].filter(Boolean).join(' '))}`,
+    `S.description=${s(calendarNote(e, link))}`,
+    `l.beginTime=${kstMs(e.date, e.startTime)}`,
+    `l.endTime=${kstMs(end.date, end.time)}`,
+    ...(fallback ? [`S.browser_fallback_url=${s(fallback)}`] : []),
+    'end',
+  ].join(';');
+}
+
+// 아이폰·PC 기본 캘린더에서 여는 일정 파일(.ics) 내용. 시각은 UTC로 적는다
 export function icsText(e, link = '', now = new Date()) {
-  const utc = (date, time) => {
-    const [y, m, d] = date.split('-').map(Number);
-    const [h, min] = time.split(':').map(Number);
-    return new Date(Date.UTC(y, m - 1, d, h - 9, min)).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  };
+  const utc = (date, time) => new Date(kstMs(date, time)).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
   const escText = (v) => String(v).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
   // 한 줄은 75바이트까지 — 넘으면 다음 줄을 공백으로 시작해 이어 쓴다 (한글이 깨지지 않게 글자 단위로 자름)
   const fold = (line) => {
@@ -207,7 +216,7 @@ export function icsText(e, link = '', now = new Date()) {
     `DTEND:${utc(end.date, end.time)}`,
     `SUMMARY:${escText(e.title)}`,
     `LOCATION:${escText([e.placeName, e.address].filter(Boolean).join(' '))}`,
-    `DESCRIPTION:${escText([e.supplies && `준비물: ${e.supplies}`, e.notes, link && `모모: ${link}`].filter(Boolean).join('\n\n'))}`,
+    `DESCRIPTION:${escText(calendarNote(e, link))}`,
     ...(link ? [`URL:${link}`] : []),
     'END:VEVENT',
     'END:VCALENDAR',

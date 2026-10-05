@@ -1,5 +1,5 @@
 // 화면 공통 조각: 이스케이프, 아이콘, 토스트, 복사·공유, 링크
-import { formatDate, timeRange } from './calc.js';
+import { formatDate, timeRange, androidCalendarIntent } from './calc.js';
 
 // 사용자 입력을 화면에 넣을 때는 항상 esc()를 거친다 (공유 링크로 남이 연 화면이므로)
 export function esc(v) {
@@ -98,11 +98,18 @@ export async function shareInvite(e, prefix = '') {
 // 가게·건물 이름으로 찾아야 네이버 지도에서 그 장소가 바로 나온다 (장소명이 없을 때만 주소로)
 export const mapUrl = (e) => `https://map.naver.com/p/search/${encodeURIComponent(e.placeName || e.address)}`;
 
-// 아이폰 기본 캘린더: 서버가 내려주는 .ics를 Safari가 열면 "캘린더에 추가" 화면이 뜬다.
-// 카톡 안 브라우저는 .ics를 열지 못해서 Safari로 넘겨서 연다
-export function icsUrl(e) {
-  const url = `${location.origin}/api/events?ics=${encodeURIComponent(e.id)}`;
-  return /KAKAOTALK/i.test(navigator.userAgent) ? `kakaotalk://web/openExternal?url=${encodeURIComponent(url)}` : url;
+// 기본 캘린더에 추가하는 주소 (기기마다 방법이 다름)
+//   아이폰: 서버가 내려주는 .ics를 Safari가 열면 "캘린더에 추가" 화면이 뜬다. 카톡 안 브라우저는 .ics를 못 열어 Safari로 넘긴다
+//   안드로이드: 기본 캘린더 앱(삼성 캘린더 등)의 일정 추가 화면을 바로 연다. 안 열리면 .ics 내려받기
+//   PC: .ics 내려받기 → 열면 기본 캘린더 앱(Outlook·캘린더)에 추가
+export function calendarLink(e) {
+  const ua = navigator.userAgent;
+  const ics = `${location.origin}/api/events?ics=${encodeURIComponent(e.id)}`;
+  if (/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) {
+    return /KAKAOTALK/i.test(ua) ? `kakaotalk://web/openExternal?url=${encodeURIComponent(ics)}` : ics;
+  }
+  if (/Android/i.test(ua)) return androidCalendarIntent(e, inviteUrl(e.id), `${ics}&dl=1`);
+  return `${ics}&dl=1`;
 }
 
 // 체험 모드(서버 없음)에서는 이 브라우저에서 .ics 파일을 만들어 내려받는다
