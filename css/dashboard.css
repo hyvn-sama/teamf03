@@ -4,7 +4,11 @@
 .dash-head .sub { color: var(--muted); font-size: 14px; }
 .dash-head .sub b { color: var(--brand); }
 
-.today-card { max-width: 600px; margin: 0 auto 10px; padding: 26px; text-align: center; border: 1.5px solid var(--dark); display: grid; gap: 10px; justify-items: center; }
+/* 오늘의 모임: 넓은 화면에서는 한 줄에 두 개씩, 하나뿐이면 가운데 */
+.today-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; margin-bottom: 10px; }
+.today-grid.single { grid-template-columns: minmax(0, 600px); justify-content: center; }
+@media (max-width: 760px) { .today-grid { grid-template-columns: minmax(0, 1fr); } }
+.today-card { margin: 0; padding: 26px; text-align: center; border: 1.5px solid var(--dark); display: grid; gap: 10px; justify-items: center; }
 .today-card .live { color: var(--ink); font-weight: 700; letter-spacing: 0.12em; }
 .dday-dark { background: var(--dark); color: #fff; padding: 4px 18px; border-radius: 8px; font-size: 22px; }
 .dday-dark em { font-style: normal; color: #ff8a5c; }

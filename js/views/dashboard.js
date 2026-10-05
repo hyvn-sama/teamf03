@@ -165,7 +165,7 @@ export async function render(root, { isStale }) {
         <p>아직 만들거나 응답한 모임이 없어요.<br><span class="hint">모임장을 만들거나 받은 링크에서 응답하면 여기에 모여요.</span></p>
         <a class="btn primary" href="#/create">${icon('mail')}첫 모임장 만들기</a>
       </div>` : ''}
-    ${today.map(todayCard).join('')}
+    ${today.length ? `<div class="today-grid${today.length === 1 ? ' single' : ''}">${today.map(todayCard).join('')}</div>` : ''}
     ${upcoming.length ? `<h2 class="section-title">다가오는 모임</h2><div class="ev-grid">${upcoming.map((x) => upcomingCard(x, tagOf(x))).join('')}</div>` : ''}
     ${past.length ? `<h2 class="section-title muted">최근 종료된 모임</h2><div class="ev-grid">${past.map(pastCard).join('')}</div>` : ''}`;
 
