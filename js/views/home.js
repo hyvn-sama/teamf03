@@ -12,6 +12,6 @@ export function render(root) {
         <p class="hero-desc">시간·장소·준비물·유의사항부터 참석 응답, 정산까지<br>카톡 대화를 뒤지지 않고 모모 하나로 끝내요.</p>
         <a class="btn primary hero-cta" href="#/create">${icon('mail')}모임장 만들기</a>
       </div>
-      <div class="hero-art" aria-hidden="true"><img src="img/momo-hero.webp" alt=""></div>
+      <div class="hero-art" aria-hidden="true"><img src="img/momo-hero.jpg" alt="" width="728" height="872"></div>
     </section>`;
 }
